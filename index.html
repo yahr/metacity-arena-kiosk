@@ -68,20 +68,18 @@ p{word-break:keep-all}
 .blink{animation:blink 1.1s steps(1) infinite}
 @keyframes blink{55%{opacity:.25}}
 
-/* 타이틀 */
-#s-title{background:linear-gradient(rgba(5,7,15,.80),rgba(5,7,15,.45) 60%,rgba(5,7,15,.75));cursor:pointer}
-.title-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
-.t-emblem{width:clamp(96px,15vh,150px);animation:bob 1.2s steps(2) infinite;filter:drop-shadow(6px 6px 0 rgba(0,0,0,.6))}
-@keyframes bob{50%{transform:translateY(-6px)}}
-.t-arena{width:clamp(220px,32vw,380px)}
-.t-grand{font:700 clamp(32px,10vw,96px)/1 var(--f);margin:6px 0 0;letter-spacing:.02em;text-shadow:6px 6px 0 var(--ink)}
+/* 타이틀: 위 띠(로고 · GRAND OPENING) + 아래 띠(START). 가운데는 비워 구장 · 방명록 말풍선이 보이게 */
+#s-title{flex-direction:column;justify-content:space-between;align-items:stretch;padding:12px 16px 10px;cursor:pointer;
+  background:linear-gradient(rgba(5,7,15,.88),rgba(5,7,15,.55) 16%,transparent 30%,transparent 68%,rgba(5,7,15,.6) 80%,rgba(5,7,15,.9))}
+.t-top{display:flex;align-items:center;justify-content:center;gap:clamp(10px,2vw,20px);text-align:left}
+.t-emblem{width:clamp(56px,9vh,96px);flex:none;animation:bob 1.2s steps(2) infinite;filter:drop-shadow(4px 4px 0 rgba(0,0,0,.6))}
+@keyframes bob{50%{transform:translateY(-4px)}}
+.t-arena{width:clamp(130px,20vw,220px);display:block}
+.t-grand{font:700 clamp(26px,5.4vw,58px)/1 var(--f);margin:6px 0 0;text-shadow:4px 4px 0 var(--ink);white-space:nowrap}
 .t-grand em{font-style:normal;color:var(--gold)}
-.t-date{font:700 18px var(--f);color:var(--cream);letter-spacing:.06em;margin:4px 0 14px}
-.t-sub{font-size:14px;color:#a9b1c6;margin:6px 0 0}
-.stages{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;list-style:none;padding:0;margin:14px 0 0}
-.stages li{font:13px var(--f);background:rgba(17,24,53,.9);padding:8px 12px;box-shadow:0 0 0 3px var(--navy-7)}
-.stages li b{color:var(--gold);margin-right:6px}
-.slogan{font:12px var(--f);letter-spacing:.4em;color:var(--gold);margin-top:6px}
+.t-date{font:700 clamp(12px,1.6vw,16px) var(--f);color:var(--cream);letter-spacing:.04em;margin:6px 0 0}
+.t-bottom{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.t-sub{font-size:13px;color:#a9b1c6;margin:0}
 
 /* 모드 선택 */
 .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:6px 0 10px}
@@ -181,8 +179,6 @@ textarea{resize:none;line-height:1.5}
   .panel{padding:18px 14px;box-shadow:0 0 0 3px var(--cream),0 0 0 6px var(--ink)}
   .px-btn{font-size:17px;padding:12px 16px;min-height:52px}
   .px-btn.big{font-size:22px;padding:16px 24px}
-  .t-date{font-size:14px} .slogan{letter-spacing:.2em;font-size:11px}
-  .stages li{font-size:12px;padding:6px 8px}
   .kick-bar{padding:10px 8px 12px} #kickMsg{font-size:15px}
   #aimRow{gap:6px;flex-wrap:nowrap} .px-btn.aim{min-width:0;flex:1;font-size:16px;padding:12px 4px;margin:4px 2px}
   .consent-list{font-size:14px;padding:12px 12px 12px 28px} .check{font-size:15px;padding:10px 12px}
@@ -212,15 +208,17 @@ textarea{resize:none;line-height:1.5}
     <video id="video" playsinline muted></video>
 
     <section class="screen show" id="s-title">
-      <div class="title-wrap">
+      <div class="t-top">
         <img class="t-emblem" src="assets/emblem.svg" alt="메타시티 FC 엠블럼">
-        <img class="t-arena" src="assets/arena-reverse.svg" alt="METACITY ARENA">
-        <h1 class="t-grand">GRAND <em>OPENING</em></h1>
-        <p class="t-date">2026. 11. 7. SAT · 메타시티FC 전용 구장</p>
+        <div>
+          <img class="t-arena" src="assets/arena-reverse.svg" alt="METACITY ARENA">
+          <h1 class="t-grand">GRAND <em>OPENING</em></h1>
+          <p class="t-date">2026. 11. 7. SAT · 메타시티FC 전용 구장</p>
+        </div>
+      </div>
+      <div class="t-bottom">
         <button class="px-btn accent big blink">▶ PRESS START</button>
-        <p class="t-sub">화면을 누르면 시작합니다</p>
-        <ol class="stages"><li><b>1</b>선수 만들기</li><li><b>2</b>승부차기</li><li><b>3</b>설문 퀘스트</li><li><b>4</b>방명록</li></ol>
-        <div class="slogan">PLAY · LEARN · GROW · TOGETHER</div>
+        <p class="t-sub">화면을 누르면 시작합니다 · 선수 만들기 → 승부차기 → 설문 → 방명록</p>
       </div>
     </section>
 
@@ -687,7 +685,7 @@ function update(dt) {
   }
   // 말풍선: 방명록 한마디를 돌아가며 띄운다
   field.bubbleT -= dt;
-  if (field.bubbleT <= 0) { field.bubbleT = 2.6; const c = field.players.filter(p => p.msg && p.bubble <= 0); if (c.length) c[Math.floor(Math.random() * c.length)].bubble = 4.5 }
+  if (field.bubbleT <= 0) { field.bubbleT = 1.8; const c = field.players.filter(p => p.msg && p.bubble <= 0); if (c.length) c[Math.floor(Math.random() * c.length)].bubble = 4.5 }
   field.pops = field.pops.filter(p => (p.t -= dt) > 0);
   if (field.mode === 'penalty') updatePen(dt);
 }
