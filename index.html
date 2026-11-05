@@ -20,7 +20,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:#000;color:var(--cream);font-family:var(--f);overflow:hidden;overscroll-behavior:none;touch-action:manipulation;-webkit-user-select:none;user-select:none}
-#app{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto}
+#app{position:fixed;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr)}
 button{font-family:inherit;cursor:pointer}
 input,textarea{-webkit-user-select:text;user-select:text}
 
@@ -74,7 +74,7 @@ p{word-break:keep-all}
 .t-emblem{width:clamp(96px,15vh,150px);animation:bob 1.2s steps(2) infinite;filter:drop-shadow(6px 6px 0 rgba(0,0,0,.6))}
 @keyframes bob{50%{transform:translateY(-6px)}}
 .t-arena{width:clamp(220px,32vw,380px)}
-.t-grand{font:700 clamp(44px,8vw,96px)/1 var(--f);margin:6px 0 0;letter-spacing:.02em;text-shadow:6px 6px 0 var(--ink)}
+.t-grand{font:700 clamp(32px,10vw,96px)/1 var(--f);margin:6px 0 0;letter-spacing:.02em;text-shadow:6px 6px 0 var(--ink)}
 .t-grand em{font-style:normal;color:var(--gold)}
 .t-date{font:700 18px var(--f);color:var(--cream);letter-spacing:.06em;margin:4px 0 14px}
 .t-sub{font-size:14px;color:#a9b1c6;margin:6px 0 0}
@@ -167,9 +167,28 @@ textarea{resize:none;line-height:1.5}
 
 @media (max-width:760px){
   .mode-grid,.opts,.adm-grid{grid-template-columns:1fr}
-  .char-grid{grid-template-columns:1fr;justify-items:center}
+  .char-grid{grid-template-columns:1fr;justify-items:center;gap:16px}
   .char-ctrl{width:100%}
   .hud-l span,.hud-r div:nth-child(2){display:none}
+  /* 휴대폰: HUD · 패널 · 버튼을 화면 폭 안으로 */
+  .hud{grid-template-columns:auto minmax(0,1fr) auto;gap:8px;padding:6px 8px}
+  .hud-l img{height:30px}
+  .hud-c{justify-self:center;gap:5px;padding:4px 8px;font-size:15px;box-shadow:0 0 0 3px var(--navy-7)}
+  .hud-c b{font-size:20px} .hud-c .tm{font-size:10px;letter-spacing:0}
+  .hud-r{gap:8px} .hud-r b{font-size:15px} .hud-r small{font-size:9px}
+  .icon-btn{width:38px;height:38px;font-size:18px}
+  .screen{padding:10px}
+  .panel{padding:18px 14px;box-shadow:0 0 0 3px var(--cream),0 0 0 6px var(--ink)}
+  .px-btn{font-size:17px;padding:12px 16px;min-height:52px}
+  .px-btn.big{font-size:22px;padding:16px 24px}
+  .t-date{font-size:14px} .slogan{letter-spacing:.2em;font-size:11px}
+  .stages li{font-size:12px;padding:6px 8px}
+  .kick-bar{padding:10px 8px 12px} #kickMsg{font-size:15px}
+  #aimRow{gap:6px;flex-wrap:nowrap} .px-btn.aim{min-width:0;flex:1;font-size:16px;padding:12px 4px;margin:4px 2px}
+  .consent-list{font-size:14px;padding:12px 12px 12px 28px} .check{font-size:15px;padding:10px 12px}
+  .mode-card{padding:18px 12px} .mode-card .ico{font-size:40px} .mode-card b{font-size:20px}
+  .cyc{grid-template-columns:48px 1fr 48px} .cyc span{font-size:15px}
+  #banner{font-size:clamp(48px,16vw,90px)}
 }
 </style>
 </head>
@@ -527,22 +546,27 @@ const DB = {
 };
 let records = [], dbOk = false;
 
-/* ===================== 구장 (세로 240x384 · 가로 384x240 도트, 화면 비율 따라 전환. 위쪽 골대가 벽 앞) ===================== */
-const cv = $('#pitch'), ctx = cv.getContext('2d'), GM = 18;
-let W, H, LX, RX, LT, LB, CX, CY, SPOT, STAND, PEN_TOP, portrait = null, EMB = null, ARENA = null;
+/* ===================== 구장 =====================
+   시뮬레이션은 구장 기준 좌표로 돌린다: a = 폭 방향, l = 길이 방향(l=0 이 HOME 이 노리는 골대).
+   그릴 때만 화면 방향으로 바꾼다. 세로 화면은 골대가 위(l=0) · 아래, 가로 화면은 오른쪽(l=0) · 왼쪽. 뒤 벽은 늘 화면 위. */
+const cv = $('#pitch'), ctx = cv.getContext('2d'), GM = 18, SPOT = 30, STAND = 42, PEN_L = 94;
+let W, H, LX, RX, LT, LB, A, L, portrait = null, EMB = null, ARENA = null;
+const sx = e => portrait ? LX + e.a : RX - e.l, sy = e => portrait ? LT + e.l : LT + e.a;
 function setGeom(pt) {
   portrait = pt; W = pt ? 240 : 384; H = pt ? 384 : 240;
-  LX = 10; RX = W - 10; LT = 56; LB = H - 20; CX = W / 2; CY = Math.round((LT + LB) / 2);
-  SPOT = LT + 30; STAND = LT + 42; PEN_TOP = LT + 94;
+  LX = 10; RX = W - 10; LT = 56; LB = H - 20;
+  A = pt ? RX - LX : LB - LT; L = pt ? LB - LT : RX - LX;
   cv.width = W * 2; cv.height = H * 2; ctx.imageSmoothingEnabled = false;
+  $('[data-aim="-1"]').textContent = pt ? '◀ 왼쪽' : '▲ 위쪽';
+  $('[data-aim="1"]').textContent = pt ? '오른쪽 ▶' : '▼ 아래쪽';
 }
 function fitStage() {
   const r = $('#stage').getBoundingClientRect(), pt = r.height >= r.width;
   if (pt === portrait) return;
-  const o = { LX, RX, LT, LB }, first = portrait === null;
+  const oA = A, oL = L, first = portrait === null;
   setGeom(pt);
   if (first) return;
-  const mv = e => { if (!e) return; e.x = LX + (e.x - o.LX) / (o.RX - o.LX) * (RX - LX); e.y = LT + (e.y - o.LT) / (o.LB - o.LT) * (LB - LT); e.retarget = 0 };
+  const mv = e => { if (!e) return; e.a *= A / oA; e.l *= L / oL; e.retarget = 0 };
   field.players.forEach(mv); field.balls.forEach(mv); mv(field.keeper); if (pen) mv(pen.ball);
   buildBg(EMB, ARENA);
 }
@@ -553,6 +577,8 @@ let bg;
 function buildBg(emb, arena) {
   bg = document.createElement('canvas'); bg.width = W; bg.height = H; const g = bg.getContext('2d'); g.imageSmoothingEnabled = false;
   const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h) };
+  // 구장 좌표 상자(a0,l0)~(a1,l1)를 화면 사각형으로
+  const Rc = (a0, l0, a1, l1, c) => { const xs = [sx({ a: a0, l: l0 }), sx({ a: a1, l: l1 })], ys = [sy({ a: a0, l: l0 }), sy({ a: a1, l: l1 })]; R(Math.min(...xs), Math.min(...ys), Math.abs(xs[1] - xs[0]) + 1, Math.abs(ys[1] - ys[0]) + 1, c) };
   // 검정 그물 천장 + 조명 줄
   R(0, 0, W, 20, '#07080d');
   for (let x = 0; x < W; x += 4) R(x, 0, 1, 20, '#141826');
@@ -573,36 +599,36 @@ function buildBg(emb, arena) {
     }
     R(x, 34, 1, 10, '#05070f');
   });
-  // 인조잔디(가로 줄무늬) + 흰 라인
-  for (let y = 44; y < H - 10; y += 22) R(0, y, W, Math.min(22, H - 10 - y), ((y - 44) / 22) % 2 ? '#287d37' : '#2e8b3e');
-  const L = '#f2f2ea';
-  R(LX, LT, RX - LX + 1, 1, L); R(LX, LB, RX - LX + 1, 1, L); R(LX, LT, 1, LB - LT, L); R(RX, LT, 1, LB - LT, L); R(LX, CY, RX - LX, 1, L);
-  if (emb) { g.globalAlpha = .28; g.drawImage(emb, CX - 18, CY - 18, 36, 36); g.globalAlpha = 1 }
-  g.fillStyle = L; for (let a = 0; a < 360; a += 1) g.fillRect(Math.round(CX + 27 * Math.cos(a * Math.PI / 180)), Math.round(CY + 27 * Math.sin(a * Math.PI / 180)), 1, 1);
-  R(CX - 1, CY - 1, 3, 3, L);
-  [[LT, 1], [LB, -1]].forEach(([gy, d]) => {
-    const by = d > 0 ? gy : gy - 46, sy = d > 0 ? gy : gy - 16;
-    R(CX - 42, by, 1, 46, L); R(CX + 42, by, 1, 46, L); R(CX - 42, d > 0 ? gy + 46 : gy - 46, 85, 1, L);
-    R(CX - 26, sy, 1, 16, L); R(CX + 26, sy, 1, 16, L); R(CX - 26, d > 0 ? gy + 16 : gy - 16, 53, 1, L);
-    R(CX - 1, gy + d * 30, 2, 2, L);
-    // 그물 골대
-    const ny = d > 0 ? gy - 10 : gy + 1;
-    R(CX - GM, ny, GM * 2, 10, 'rgba(255,255,255,.12)');
-    g.fillStyle = 'rgba(230,230,230,.55)';
-    for (let x = CX - GM; x <= CX + GM; x += 2) g.fillRect(x, ny, 1, 10);
-    for (let y = ny; y < ny + 10; y += 2) g.fillRect(CX - GM, y, GM * 2, 1);
-    R(CX - GM - 1, gy - 1, 3, 3, '#fff'); R(CX + GM - 1, gy - 1, 3, 3, '#fff');
-    R(CX - GM, ny, 1, 10, '#fff'); R(CX + GM, ny, 1, 10, '#fff'); R(CX - GM, d > 0 ? ny : ny + 9, GM * 2 + 1, 1, '#fff');
+  // 인조잔디: 길이 방향에 직각인 줄무늬
+  if (portrait) for (let y = 44; y < H - 10; y += 22) R(0, y, W, Math.min(22, H - 10 - y), ((y - 44) / 22) % 2 ? '#287d37' : '#2e8b3e');
+  else for (let x = 0; x < W; x += 24) R(x, 44, 24, H - 54, (x / 24) % 2 ? '#287d37' : '#2e8b3e');
+  // 흰 라인
+  const Lc = '#f2f2ea', ca = Math.round(A / 2), cl = Math.round(L / 2), cx = sx({ a: ca, l: cl }), cy = sy({ a: ca, l: cl });
+  Rc(0, 0, A, 0, Lc); Rc(0, L, A, L, Lc); Rc(0, 0, 0, L, Lc); Rc(A, 0, A, L, Lc); Rc(0, cl, A, cl, Lc);
+  if (emb) { g.globalAlpha = .28; g.drawImage(emb, cx - 18, cy - 18, 36, 36); g.globalAlpha = 1 }
+  g.fillStyle = Lc; for (let d = 0; d < 360; d += 1) g.fillRect(Math.round(cx + 27 * Math.cos(d * Math.PI / 180)), Math.round(cy + 27 * Math.sin(d * Math.PI / 180)), 1, 1);
+  R(cx - 1, cy - 1, 3, 3, Lc);
+  [[0, 1], [L, -1]].forEach(([g0, d]) => {
+    const e = v => g0 + d * v; // 골라인에서 안쪽으로 v 만큼
+    Rc(ca - 42, e(0), ca - 42, e(46), Lc); Rc(ca + 42, e(0), ca + 42, e(46), Lc); Rc(ca - 42, e(46), ca + 42, e(46), Lc);
+    Rc(ca - 26, e(0), ca - 26, e(16), Lc); Rc(ca + 26, e(0), ca + 26, e(16), Lc); Rc(ca - 26, e(16), ca + 26, e(16), Lc);
+    Rc(ca, e(30), ca + 1, e(31), Lc);
+    // 그물 골대(골라인 바깥 10칸)
+    Rc(ca - GM, e(-10), ca + GM, e(-1), 'rgba(255,255,255,.12)');
+    for (let a = ca - GM; a <= ca + GM; a += 2) Rc(a, e(-10), a, e(-1), 'rgba(230,230,230,.5)');
+    for (let k = 2; k <= 10; k += 2) Rc(ca - GM, e(-k), ca + GM, e(-k), 'rgba(230,230,230,.5)');
+    Rc(ca - GM, e(-10), ca - GM, e(-1), '#fff'); Rc(ca + GM, e(-10), ca + GM, e(-1), '#fff'); Rc(ca - GM, e(-10), ca + GM, e(-10), '#fff');
+    Rc(ca - GM - 1, e(-1), ca - GM + 1, e(1), '#fff'); Rc(ca + GM - 1, e(-1), ca + GM + 1, e(1), '#fff');
   });
   [[LX, LT], [RX, LT], [LX, LB], [RX, LB]].forEach(([x, y]) => { R(x, y - 6, 1, 6, '#ddd'); R(x + 1, y - 6, 3, 2, '#cb0f47') });
   // 앞 펜스
   R(0, H - 10, W, 10, '#111835'); R(0, H - 10, W, 1, '#2f385a');
-  g.fillStyle = '#c9a46a'; g.fillText('PLAY · LEARN · GROW · TOGETHER', CX, H - 5);
+  g.fillStyle = '#c9a46a'; g.fillText('PLAY · LEARN · GROW · TOGETHER', W / 2, H - 5);
 }
 
-const field = { players: [], balls: [], keeper: null, kicker: null, score: { HOME: 0, AWAY: 0 }, mode: 'attract', pops: [], t: 0, bubbleT: 2 };
+const field = { players: [], balls: [], keeper: null, kicker: null, score: { HOME: 1, AWAY: 0 }, mode: 'attract', pops: [], t: 0, bubbleT: 2 };
 function mkPlayer(o) {
-  return Object.assign({ x: rand(LX + 16, RX - 16), y: rand(LT + 24, LB - 4), speed: rand(22, 38), tx: CX, ty: CY, chase: null, retarget: 0, kickCd: 0, anim: 0, moving: false, flip: false, back: false, bubble: 0, me: false, msg: '', name: '' }, o);
+  return Object.assign({ a: rand(8, A - 8), l: rand(24, L - 4), speed: rand(22, 38), ta: A / 2, tl: L / 2, chase: null, retarget: 0, kickCd: 0, anim: 0, moving: false, flip: false, back: false, bubble: 0, me: false, msg: '', name: '' }, o);
 }
 function refreshField() {
   const keep = field.kicker; field.players = [];
@@ -610,49 +636,54 @@ function refreshField() {
   ['COACH', 'MTCT', 'ARENA', 'FC'].slice(0, Math.max(0, 4 - records.length)).forEach((n, i) => field.players.push(mkPlayer({ look: randLook(TEAMS[i % 2]), name: n, npc: true })));
   if (keep) field.players.push(keep);
 }
-function ensureBalls() { while (field.balls.length < 3) field.balls.push({ x: rand(CX - 60, CX + 60), y: rand(LT + 30, LB - 20), z: 0, vx: 0, vy: 0, vz: 0 }) }
-const dir = p => p.look.team === 'HOME' ? -1 : 1; // HOME 은 위쪽 골대, AWAY 는 아래쪽 골대를 노린다
-function moveTo(p, tx, ty, sp, dt) {
-  const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy);
+function ensureBalls() { while (field.balls.length < 3) field.balls.push({ a: rand(A / 2 - 50, A / 2 + 50), l: rand(30, L - 20), z: 0, va: 0, vl: 0, vz: 0 }) }
+const dir = p => p.look.team === 'HOME' ? -1 : 1; // HOME 은 l=0 골대, AWAY 는 l=L 골대를 노린다
+const dist = (p, q) => Math.hypot(p.a - q.a, p.l - q.l);
+function moveTo(p, ta, tl, sp, dt) {
+  const da = ta - p.a, dl = tl - p.l, d = Math.hypot(da, dl);
   if (d < 1) { p.moving = false; return true }
-  const s = Math.min(d, sp * dt); p.x += dx / d * s; p.y += dy / d * s; p.moving = true; p.anim += dt;
+  const s = Math.min(d, sp * dt); p.a += da / d * s; p.l += dl / d * s; p.moving = true; p.anim += dt;
+  const dx = portrait ? da : -dl, dy = portrait ? dl : da; // 화면에서 움직이는 방향
   if (Math.abs(dx) > .5) p.flip = dx < 0;
   p.back = dy < -Math.abs(dx) * .8; return false;
 }
 function goalScored(team, b) {
+  const pt = { a: A / 2, l: team === 'HOME' ? 22 : L - 22 };
+  // 전광판은 늘 HOME 이 앞선다: AWAY 골은 HOME 이 2점 이상 앞설 때만 인정, 아니면 HOME 골키퍼 선방
+  if (team === 'AWAY' && field.score.AWAY + 1 >= field.score.HOME) { field.pops.push({ text: 'SAVE!', x: sx(pt), y: sy(pt), t: 1.2 }); b.l = L - 4; b.vl = -90; b.va = rand(-40, 40); return }
   field.score[team]++; hudScore();
-  field.pops.push({ text: 'GOAL!', x: CX, y: team === 'HOME' ? LT + 22 : LB - 22, t: 1.6 });
-  b.x = CX + rand(-20, 20); b.y = CY; b.vx = b.vy = b.vz = b.z = 0;
+  field.pops.push({ text: 'GOAL!', x: sx(pt), y: sy(pt), t: 1.6 });
+  b.a = A / 2 + rand(-20, 20); b.l = L / 2; b.va = b.vl = b.vz = b.z = 0;
 }
 function update(dt) {
   field.t += dt;
-  const top = field.mode === 'penalty' ? PEN_TOP : LT; // 승부차기 중에는 위쪽 페널티 구역을 비운다
+  const top = field.mode === 'penalty' ? PEN_L : 0; // 승부차기 중에는 l=0 쪽 페널티 구역을 비운다
   for (const p of field.players) {
     if (p === field.kicker && field.mode === 'penalty') continue;
     p.kickCd -= dt; p.retarget -= dt; if (p.bubble > 0) p.bubble -= dt;
-    if (p.y < top + 6) p.chase = null;
+    if (p.l < top + 6) p.chase = null;
     if (p.retarget <= 0) {
       p.retarget = rand(1, 3.5);
-      const b = field.balls.reduce((m, b) => !m || Math.hypot(b.x - p.x, b.y - p.y) < Math.hypot(m.x - p.x, m.y - p.y) ? b : m, null);
-      if (b && Math.hypot(b.x - p.x, b.y - p.y) < 110 && Math.random() < .6) p.chase = b;
-      else { p.chase = null; p.tx = rand(LX + 10, RX - 10); p.ty = rand(top + 30, LB - 2) }
+      const b = field.balls.reduce((m, b) => !m || dist(b, p) < dist(m, p) ? b : m, null);
+      if (b && dist(b, p) < 110 && Math.random() < .6) p.chase = b;
+      else { p.chase = null; p.ta = rand(10, A - 10); p.tl = rand(top + 30, L - 2) }
     }
     if (p.chase) {
       const b = p.chase;
-      moveTo(p, b.x, Math.max(top + 30, b.y - dir(p) * 4), p.speed * 1.25, dt);
-      if (Math.hypot(b.x - p.x, b.y - p.y) < 7 && p.kickCd <= 0 && b.z < 2) {
-        const gy = dir(p) < 0 ? LT - 6 : LB + 6, gx = CX + rand(-34, 34), d = Math.hypot(gx - b.x, gy - b.y), sp = rand(80, 150);
-        b.vx = (gx - b.x) / d * sp; b.vy = (gy - b.y) / d * sp; b.vz = Math.random() < .3 ? 70 : 0;
+      moveTo(p, b.a, Math.max(top + 30, b.l - dir(p) * 4), p.speed * 1.25, dt);
+      if (dist(b, p) < 7 && p.kickCd <= 0 && b.z < 2) {
+        const gl = dir(p) < 0 ? -6 : L + 6, ga = A / 2 + rand(-34, 34), d = Math.hypot(ga - b.a, gl - b.l), sp = rand(80, 150);
+        b.va = (ga - b.a) / d * sp; b.vl = (gl - b.l) / d * sp; b.vz = Math.random() < .3 ? 70 : 0;
         p.kickCd = 1.4; p.chase = null; p.retarget = rand(.5, 1.5);
       }
-    } else if (moveTo(p, p.tx, p.ty, p.speed, dt)) p.retarget = Math.min(p.retarget, rand(0, 1.5));
+    } else if (moveTo(p, p.ta, p.tl, p.speed, dt)) p.retarget = Math.min(p.retarget, rand(0, 1.5));
   }
   for (const b of field.balls) {
-    b.x += b.vx * dt; b.y += b.vy * dt; const fr = Math.pow(.45, dt); b.vx *= fr; b.vy *= fr;
+    b.a += b.va * dt; b.l += b.vl * dt; const fr = Math.pow(.45, dt); b.va *= fr; b.vl *= fr;
     b.vz -= 260 * dt; b.z += b.vz * dt; if (b.z < 0) { b.z = 0; b.vz = b.vz < -40 ? -b.vz * .45 : 0 }
-    if (b.x < LX + 2) { b.x = LX + 2; b.vx = Math.abs(b.vx) * .7 } if (b.x > RX - 1) { b.x = RX - 1; b.vx = -Math.abs(b.vx) * .7 }
-    if (b.y < top) { if (top === LT && Math.abs(b.x - CX) < GM) goalScored('HOME', b); else { b.y = top; b.vy = Math.abs(b.vy) * .7 } }
-    if (b.y > LB) { if (Math.abs(b.x - CX) < GM) goalScored('AWAY', b); else { b.y = LB; b.vy = -Math.abs(b.vy) * .7 } }
+    if (b.a < 2) { b.a = 2; b.va = Math.abs(b.va) * .7 } if (b.a > A - 1) { b.a = A - 1; b.va = -Math.abs(b.va) * .7 }
+    if (b.l < top) { if (top === 0 && Math.abs(b.a - A / 2) < GM) goalScored('HOME', b); else { b.l = top; b.vl = Math.abs(b.vl) * .7 } }
+    if (b.l > L) { if (Math.abs(b.a - A / 2) < GM) goalScored('AWAY', b); else { b.l = L; b.vl = -Math.abs(b.vl) * .7 } }
   }
   // 말풍선: 방명록 한마디를 돌아가며 띄운다
   field.bubbleT -= dt;
@@ -662,16 +693,16 @@ function update(dt) {
 }
 function drawShadow(x, y, w) { ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(Math.round(x - w / 2), Math.round(y) - 1, w, 2); ctx.fillRect(Math.round(x - w / 2) + 1, Math.round(y) + 1, w - 2, 1) }
 function drawPlayer(p) {
-  const f = p.moving ? [0, 1, 0, 2][Math.floor(p.anim * 8) % 4] : 0, s = sprite(p.look, f, p.back), x = Math.round(p.x), y = Math.round(p.y);
+  const f = p.moving ? [0, 1, 0, 2][Math.floor(p.anim * 8) % 4] : 0, s = sprite(p.look, f, p.back), x = Math.round(sx(p)), y = Math.round(sy(p));
   drawShadow(x, y, 11);
-  const X = Math.round(p.x * 2), Y = Math.round(p.y * 2); // 캐릭터는 2배 해상도 캔버스에 1:1로 그린다
+  const X = Math.round(sx(p) * 2), Y = Math.round(sy(p) * 2); // 캐릭터는 2배 해상도 캔버스에 1:1로 그린다
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
   if (p.flip) { ctx.translate(X + 16, 0); ctx.scale(-1, 1); ctx.drawImage(s, 0, Y - 45) } else ctx.drawImage(s, X - 16, Y - 45);
   ctx.restore();
   if (p.me) { const by = y - 29 + (Math.floor(field.t * 4) % 2); ctx.fillStyle = '#ffd36b'; ctx.fillRect(x - 3, by, 7, 1); ctx.fillRect(x - 2, by + 1, 5, 1); ctx.fillRect(x - 1, by + 2, 3, 1); ctx.fillRect(x, by + 3, 1, 1) }
 }
 function drawBall(b) {
-  const x = Math.round(b.x), y = Math.round(b.y), z = Math.round(b.z);
+  const x = Math.round(sx(b)), y = Math.round(sy(b)), z = Math.round(b.z);
   drawShadow(x, y, 4);
   ctx.fillStyle = '#0e1020'; ctx.fillRect(x - 2, y - z - 4, 4, 4);
   ctx.fillStyle = '#f6f6f6'; ctx.fillRect(x - 1, y - z - 4, 2, 4); ctx.fillRect(x - 2, y - z - 3, 4, 2);
@@ -679,32 +710,32 @@ function drawBall(b) {
 }
 function drawBubble(p) {
   ctx.font = '8px Galmuri7'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-  const t = p.msg.length > 14 ? p.msg.slice(0, 13) + '…' : p.msg, n = p.name;
+  const t = p.msg.length > 14 ? p.msg.slice(0, 13) + '…' : p.msg, n = p.name, px = Math.round(sx(p)), py = Math.round(sy(p));
   const w = Math.ceil(Math.max(ctx.measureText(t).width, ctx.measureText(n).width)) + 6;
-  const bx = Math.max(1, Math.min(W - w - 1, Math.round(p.x - w / 2))), by = Math.max(1, Math.round(p.y) - 48);
-  ctx.fillStyle = OUT; ctx.fillRect(bx - 1, by - 1, w + 2, 22); ctx.fillRect(Math.round(p.x) - 2, by + 21, 4, 2);
-  ctx.fillStyle = '#fff'; ctx.fillRect(bx, by, w, 20); ctx.fillRect(Math.round(p.x) - 1, by + 20, 2, 2);
+  const bx = Math.max(1, Math.min(W - w - 1, px - Math.round(w / 2))), by = Math.max(1, py - 48);
+  ctx.fillStyle = OUT; ctx.fillRect(bx - 1, by - 1, w + 2, 22); ctx.fillRect(px - 2, by + 21, 4, 2);
+  ctx.fillStyle = '#fff'; ctx.fillRect(bx, by, w, 20); ctx.fillRect(px - 1, by + 20, 2, 2);
   ctx.fillStyle = '#9a7a48'; ctx.fillText(n, bx + 3, by + 1); ctx.fillStyle = '#111835'; ctx.fillText(t, bx + 3, by + 10);
 }
 function draw() {
   ctx.setTransform(2, 0, 0, 2, 0, 0); ctx.imageSmoothingEnabled = false;
   if (bg) ctx.drawImage(bg, 0, 0); else { ctx.fillStyle = '#2e8b3e'; ctx.fillRect(0, 0, W, H) }
-  const ents = field.players.map(p => [p.y, () => drawPlayer(p)]).concat(field.balls.map(b => [b.y, () => drawBall(b)]));
-  if (field.mode === 'penalty') { ents.push([field.keeper.y, () => drawPlayer(field.keeper)], [pen.ball.y, () => drawBall(pen.ball)]) }
+  const ents = field.players.map(p => [sy(p), () => drawPlayer(p)]).concat(field.balls.map(b => [sy(b), () => drawBall(b)]));
+  if (field.mode === 'penalty') { ents.push([sy(field.keeper), () => drawPlayer(field.keeper)], [sy(pen.ball), () => drawBall(pen.ball)]) }
   ents.sort((a, b) => a[0] - b[0]).forEach(e => e[1]());
   field.players.filter(p => p.bubble > 0 && p.msg).forEach(drawBubble);
   ctx.font = '16px Galmuri11'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const p of field.pops) { const y = Math.round(p.y - (1.6 - p.t) * 12); ctx.fillStyle = OUT; ctx.fillText(p.text, p.x + 1, y + 1); ctx.fillStyle = '#ffd36b'; ctx.fillText(p.text, p.x, y) }
 }
 
-/* ===================== 승부차기 (위쪽 골대로) ===================== */
+/* ===================== 승부차기 (l=0 골대로: 세로는 위쪽, 가로는 오른쪽) ===================== */
 let pen = null;
 function startPen() {
   field.mode = 'penalty';
-  pen = { shot: 0, goals: 0, phase: 'walk', t: 0, aim: 0, ball: { x: CX, y: SPOT, z: 0, vx: 0, vy: 0 }, to: null };
-  field.keeper = mkPlayer({ x: CX, y: LT + 2, look: { skin: 2, hair: 1, hairColor: 0, team: 'GK', boots: 5 } });
-  const k = field.kicker; k.x = CX + 24; k.y = CY + 10; k.flip = false;
-  for (const b of field.balls) if (b.y < PEN_TOP + 10) { b.y = rand(PEN_TOP + 20, LB - 10); b.vx = b.vy = 0 }
+  pen = { shot: 0, goals: 0, phase: 'walk', t: 0, aim: 0, ball: { a: A / 2, l: SPOT, z: 0, va: 0, vl: 0 }, to: null };
+  field.keeper = mkPlayer({ a: A / 2, l: 2, look: { skin: 2, hair: 1, hairColor: 0, team: 'GK', boots: 5 } });
+  const k = field.kicker; k.a = A / 2 + 24; k.l = L / 2 + 10; k.flip = false;
+  for (const b of field.balls) if (b.l < PEN_L + 10) { b.l = rand(PEN_L + 20, L - 10); b.va = b.vl = 0 }
   hudPen(); setAim(false); $('#kickNext').classList.add('hidden'); $('#aimRow').classList.remove('hidden');
   $('#kickMsg').textContent = '선수가 페널티 지점으로 갑니다';
 }
@@ -712,27 +743,27 @@ function setAim(on) { $$('.aim').forEach(b => b.disabled = !on) }
 const aimMsg = () => `SHOT ${pen.shot + 1}/3 · 골키퍼가 비운 쪽을 골라 눌러 주시기 바랍니다`;
 function updatePen(dt) {
   const k = field.kicker, P = pen, b = P.ball, kp = field.keeper; P.t += dt;
-  const kx = CX + Math.sin(field.t * (2.2 + P.shot * .8)) * 15;
-  kp.flip = kx < kp.x; kp.x = kx; kp.y = LT + 2; kp.moving = true; kp.anim += dt;
+  const ka = A / 2 + Math.sin(field.t * (2.2 + P.shot * .8)) * 15;
+  kp.flip = portrait && ka < kp.a; kp.a = ka; kp.l = 2; kp.back = false; kp.moving = true; kp.anim += dt;
   if (P.phase === 'walk' || P.phase === 'back') {
-    if (moveTo(k, CX, STAND, 70, dt)) { P.phase = 'aim'; k.back = true; k.flip = false; setAim(true); $('#kickMsg').textContent = aimMsg() }
+    if (moveTo(k, A / 2, STAND, 70, dt)) { P.phase = 'aim'; k.back = portrait; k.flip = false; setAim(true); $('#kickMsg').textContent = aimMsg() }
   } else if (P.phase === 'run') {
-    if (moveTo(k, CX, SPOT + 5, 90, dt)) { P.phase = 'fly'; P.t = 0; sfx('kick'); P.to = { x: CX + P.aim * 13, y: LT - 6 } }
+    if (moveTo(k, A / 2, SPOT + 5, 90, dt)) { P.phase = 'fly'; P.t = 0; sfx('kick'); P.to = { a: A / 2 + P.aim * 13, l: -6 } }
   } else if (P.phase === 'fly') {
     const u = Math.min(1, P.t / .38);
-    b.x = CX + (P.to.x - CX) * u; b.y = SPOT + (P.to.y - SPOT) * u; b.z = Math.sin(u * Math.PI) * (P.aim ? 7 : 3);
+    b.a = A / 2 + (P.to.a - A / 2) * u; b.l = SPOT + (P.to.l - SPOT) * u; b.z = Math.sin(u * Math.PI) * (P.aim ? 7 : 3);
     if (u >= 1) {
       P.phase = 'after'; P.t = 0;
-      if (Math.abs(kp.x - P.to.x) < 9) { b.vy = 110; b.vx = rand(-50, 50); b.y = LT + 4; sfx('save'); banner('SAVE!', 'sm'); $('#kickMsg').textContent = '골키퍼가 막았습니다' }
-      else { P.goals++; b.vx = b.vy = 0; sfx('goal'); banner('GOAL!'); $('#kickMsg').textContent = '골입니다' }
+      if (Math.abs(kp.a - P.to.a) < 9) { b.vl = 110; b.va = rand(-50, 50); b.l = 4; sfx('save'); banner('SAVE!', 'sm'); $('#kickMsg').textContent = '골키퍼가 막았습니다' }
+      else { P.goals++; b.va = b.vl = 0; sfx('goal'); banner('GOAL!'); $('#kickMsg').textContent = '골입니다' }
       hudPen();
     }
   } else if (P.phase === 'after') {
-    b.x += b.vx * dt; b.y += b.vy * dt; b.vx *= Math.pow(.3, dt); b.vy *= Math.pow(.3, dt);
+    b.a += b.va * dt; b.l += b.vl * dt; b.va *= Math.pow(.3, dt); b.vl *= Math.pow(.3, dt);
     if (P.t > 1.5) {
       P.shot++;
       if (P.shot >= 3) { P.phase = 'done'; $('#aimRow').classList.add('hidden'); $('#kickNext').classList.remove('hidden'); $('#kickMsg').textContent = `3번 중 ${P.goals}골을 넣었습니다 · +${P.goals * 300}점`; banner(`${P.goals} GOAL`, 'sm'); sfx('coin') }
-      else { P.phase = 'back'; Object.assign(b, { x: CX, y: SPOT, z: 0, vx: 0, vy: 0 }); hudPen() }
+      else { P.phase = 'back'; Object.assign(b, { a: A / 2, l: SPOT, z: 0, va: 0, vl: 0 }); hudPen() }
     }
   }
 }
@@ -743,7 +774,7 @@ $$('.aim').forEach(btn => btn.addEventListener('click', () => {
 function endPen() { field.mode = 'attract'; pen = null; hudScore() }
 
 /* ===================== HUD · 전광판 · 배너 ===================== */
-function hudScore() { $('#hudScore').classList.toggle('hidden', field.mode === 'penalty'); $('#hudPen').classList.toggle('hidden', field.mode !== 'penalty'); $('#scN').textContent = pad(field.score.HOME % 100, 2); $('#scW').textContent = pad(field.score.AWAY % 100, 2) }
+function hudScore() { $('#hudScore').classList.toggle('hidden', field.mode === 'penalty'); $('#hudPen').classList.toggle('hidden', field.mode !== 'penalty'); $('#scN').textContent = pad(field.score.HOME, 2); $('#scW').textContent = pad(field.score.AWAY, 2) }
 function hudPen() { hudScore(); $('#penShot').textContent = `${Math.min(pen.shot + 1, 3)}/3`; $('#penGoal').textContent = pen.goals }
 function hudStats() {
   $('#hudCount').textContent = pad(records.length, 3);
@@ -966,7 +997,7 @@ $('#admFull').addEventListener('click', () => { const d = document.documentEleme
 $('#admReset').addEventListener('click', async () => {
   if (prompt(`참여 ${records.length}명의 기록을 모두 지웁니다. 계속하려면 "삭제"를 입력해 주시기 바랍니다.`) !== '삭제') return;
   try { if (dbOk) await DB.clear() } catch (e) { alert('지우지 못했습니다: ' + e) ; return }
-  records = []; field.score = { HOME: 0, AWAY: 0 }; refreshField(); hudStats(); hudScore(); enter.admin();
+  records = []; field.score = { HOME: 1, AWAY: 0 }; refreshField(); hudStats(); hudScore(); enter.admin();
 });
 
 /* ===================== 시작 ===================== */
