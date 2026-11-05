@@ -69,7 +69,7 @@ p{word-break:keep-all}
 @keyframes blink{55%{opacity:.25}}
 
 /* 타이틀: 위 띠(로고 · GRAND OPENING) + 아래 띠(START). 가운데는 비워 구장 · 방명록 말풍선이 보이게 */
-#s-title{flex-direction:column;justify-content:space-between;align-items:stretch;padding:12px 16px 10px;cursor:pointer;
+#s-title{flex-direction:column;justify-content:flex-start;align-items:stretch;padding:12px 16px 14px;
   background:linear-gradient(rgba(5,7,15,.88),rgba(5,7,15,.55) 16%,transparent 30%,transparent 68%,rgba(5,7,15,.6) 80%,rgba(5,7,15,.9))}
 .t-top{display:flex;align-items:center;justify-content:center;gap:clamp(10px,2vw,20px);text-align:left}
 .t-emblem{width:clamp(56px,9vh,96px);flex:none;animation:bob 1.2s steps(2) infinite;filter:drop-shadow(4px 4px 0 rgba(0,0,0,.6))}
@@ -78,7 +78,20 @@ p{word-break:keep-all}
 .t-grand{font:700 clamp(26px,5.4vw,58px)/1 var(--f);margin:6px 0 0;text-shadow:4px 4px 0 var(--ink);white-space:nowrap}
 .t-grand em{font-style:normal;color:var(--gold)}
 .t-date{font:700 clamp(12px,1.6vw,16px) var(--f);color:var(--cream);letter-spacing:.04em;margin:6px 0 0}
-.t-bottom{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.t-bottom{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;margin-top:auto}
+.t-ribbon{margin:-12px -16px 10px;padding:10px 12px;background:#fff1b8;color:var(--navy);font:700 clamp(14px,2.2vw,20px)/1.3 var(--f);text-align:center;word-break:keep-all;box-shadow:0 4px 0 var(--ink)}
+.pill{display:flex;align-items:center;justify-content:center;gap:12px;width:min(420px,86vw);min-height:68px;padding:12px 24px;border-radius:999px;
+  font:700 clamp(20px,3vw,28px) var(--f);color:var(--navy);background:#fff;border:4px solid var(--ink);box-shadow:inset 0 -6px 0 rgba(17,24,53,.14),0 6px 0 var(--ink)}
+.pill:active{transform:translateY(4px);box-shadow:inset 0 -4px 0 rgba(17,24,53,.14),0 2px 0 var(--ink)}
+.pill.accent{background:var(--pink);color:#fff;box-shadow:inset 0 -6px 0 rgba(0,0,0,.2),0 6px 0 var(--ink)}
+.pill span{font-size:1.1em}
+/* 방명록 목록 */
+.book{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;max-height:min(62vh,640px);overflow:auto;padding:4px;text-align:center}
+.book .card{background:var(--navy-8);padding:10px 8px 12px;box-shadow:0 0 0 3px var(--navy-6)}
+.book canvas{width:64px;aspect-ratio:32/47;image-rendering:pixelated;display:block;margin:0 auto 6px}
+.book b{display:block;font:700 15px var(--f);color:var(--led)}
+.book p{margin:6px 0 0;font:14px/1.5 var(--f);color:var(--cream);word-break:break-all}
+.book small{display:block;margin-top:6px;font:11px var(--f);color:#828ba7}
 .t-sub{font-size:13px;color:#a9b1c6;margin:0}
 
 /* 모드 선택 */
@@ -208,6 +221,7 @@ textarea{resize:none;line-height:1.5}
     <video id="video" playsinline muted></video>
 
     <section class="screen show" id="s-title">
+      <div class="t-ribbon">메타시티 아레나의 새로운 시작을 함께 축하해 주시기 바랍니다</div>
       <div class="t-top">
         <img class="t-emblem" src="assets/emblem.svg" alt="메타시티 FC 엠블럼">
         <div>
@@ -217,8 +231,18 @@ textarea{resize:none;line-height:1.5}
         </div>
       </div>
       <div class="t-bottom">
-        <button class="px-btn accent big blink">▶ PRESS START</button>
-        <p class="t-sub">화면을 누르면 시작합니다 · 선수 만들기 → 승부차기 → 설문 → 방명록</p>
+        <button class="pill accent" id="startBtn"><span>📸</span> 선수 만들기</button>
+        <button class="pill" id="bookBtn"><span>📖</span> 방명록 보기</button>
+        <p class="t-sub">선수 만들기 → 승부차기 → 설문 → 방명록 · PRESS START</p>
+      </div>
+    </section>
+
+    <section class="screen dim" id="s-book">
+      <div class="panel">
+        <p class="kicker">GUESTBOOK · 방명록 <span id="bookCount">0</span>개</p>
+        <h2>메타시티 아레나에 남겨 주신 한마디</h2>
+        <div class="book" id="bookList"></div>
+        <div class="row"><button class="px-btn accent" data-go="title">구장으로 돌아가기</button></div>
       </div>
     </section>
 
@@ -239,9 +263,9 @@ textarea{resize:none;line-height:1.5}
         <p class="kicker">PHOTO · 촬영 안내</p>
         <h2>촬영 전에 확인해 주시기 바랍니다</h2>
         <ul class="consent-list">
-          <li>사진은 이 패드 안에서 도트 캐릭터를 만드는 데만 쓰고, <b>원본은 저장하지 않고 바로 지웁니다.</b> 인터넷으로 보내지 않습니다.</li>
+          <li>사진은 이 패드 안에서 도트 캐릭터를 만드는 데만 쓰고, <b>원본은 저장하지 않고 바로 지우며, 인터넷으로 보내지 않습니다.</b></li>
           <li>저장하는 것은 도트 캐릭터 · 닉네임 · 설문 답 · 방명록 한마디입니다.</li>
-          <li>저장한 내용은 오픈 행사 결과 정리와 이 구장 화면에만 쓰고, 행사 뒤 3개월 안에 지웁니다.</li>
+          <li>저장한 내용은 이 패드와 클럽 구글 시트에 모아 오픈 행사 결과 정리와 이 구장 화면에만 쓰고, 행사 뒤 3개월 안에 지웁니다.</li>
           <li>만 14세 미만은 보호자와 함께 확인해 주시기 바랍니다.</li>
         </ul>
         <label class="check"><input type="checkbox" id="agree"> <span>위 내용을 확인했고 촬영에 동의합니다</span></label>
@@ -312,7 +336,7 @@ textarea{resize:none;line-height:1.5}
         <h2>메타시티 아레나에 한마디 남겨 주시기 바랍니다</h2>
         <div class="chips" id="chips"></div>
         <textarea id="msg" maxlength="40" rows="2" placeholder="직접 적으셔도 됩니다 (40자까지)"></textarea>
-        <p class="small"><span id="msgLen">0</span>/40 · 남긴 한마디는 구장 화면과 아래 전광판에 함께 표시됩니다</p>
+        <p class="small"><span id="msgLen">0</span>/40 · 남긴 한마디는 구장 화면과 전광판에 표시되고, 행사 결과 정리를 위해 클럽 구글 시트에 저장됩니다</p>
         <div class="row"><button class="px-btn ghost" id="guestSkip">건너뛰기</button><button class="px-btn accent" id="guestBtn">방명록 남기기 ▶</button></div>
       </div>
     </section>
@@ -540,6 +564,7 @@ const DB = {
   open() { return new Promise((res, rej) => { const r = indexedDB.open('mtct-arena-kiosk', 1); r.onupgradeneeded = () => r.result.createObjectStore('players', { keyPath: 'id', autoIncrement: true }); r.onsuccess = () => { this.db = r.result; res() }; r.onerror = () => rej(r.error) }) },
   all() { return new Promise((res, rej) => { const r = this.db.transaction('players').objectStore('players').getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error) }) },
   add(v) { return new Promise((res, rej) => { const t = this.db.transaction('players', 'readwrite'), r = t.objectStore('players').add(v); t.oncomplete = () => res(r.result); t.onerror = () => rej(t.error) }) },
+  put(v) { return new Promise((res, rej) => { const t = this.db.transaction('players', 'readwrite'); t.objectStore('players').put(v); t.oncomplete = res; t.onerror = () => rej(t.error) }) },
   clear() { return new Promise((res, rej) => { const t = this.db.transaction('players', 'readwrite'); t.objectStore('players').clear(); t.oncomplete = res; t.onerror = () => rej(t.error) }) },
 };
 let records = [], dbOk = false;
@@ -685,7 +710,7 @@ function update(dt) {
   }
   // 말풍선: 방명록 한마디를 돌아가며 띄운다
   field.bubbleT -= dt;
-  if (field.bubbleT <= 0) { field.bubbleT = 1.8; const c = field.players.filter(p => p.msg && p.bubble <= 0); if (c.length) c[Math.floor(Math.random() * c.length)].bubble = 4.5 }
+  if (field.bubbleT <= 0) { field.bubbleT = 1.1; const c = field.players.filter(p => p.msg && p.bubble <= 0); if (c.length) c[Math.floor(Math.random() * c.length)].bubble = 5 }
   field.pops = field.pops.filter(p => (p.t -= dt) > 0);
   if (field.mode === 'penalty') updatePen(dt);
 }
@@ -697,6 +722,12 @@ function drawPlayer(p) {
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
   if (p.flip) { ctx.translate(X + 16, 0); ctx.scale(-1, 1); ctx.drawImage(s, 0, Y - 45) } else ctx.drawImage(s, X - 16, Y - 45);
   ctx.restore();
+  if (p.name) { // 발밑 이름표(흰 글씨 + 어두운 테두리)
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.font = '12px Galmuri9'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.strokeStyle = OUT;
+    ctx.strokeText(p.name, X, Y + 3); ctx.fillStyle = p.me ? '#ffd36b' : '#ffffff'; ctx.fillText(p.name, X, Y + 3);
+    ctx.restore();
+  }
   if (p.me) { const by = y - 29 + (Math.floor(field.t * 4) % 2); ctx.fillStyle = '#ffd36b'; ctx.fillRect(x - 3, by, 7, 1); ctx.fillRect(x - 2, by + 1, 5, 1); ctx.fillRect(x - 1, by + 2, 3, 1); ctx.fillRect(x, by + 3, 1, 1) }
 }
 function drawBall(b) {
@@ -706,14 +737,17 @@ function drawBall(b) {
   ctx.fillStyle = '#f6f6f6'; ctx.fillRect(x - 1, y - z - 4, 2, 4); ctx.fillRect(x - 2, y - z - 3, 4, 2);
   ctx.fillStyle = '#0e1020'; ctx.fillRect(x, y - z - 3, 1, 1);
 }
-function drawBubble(p) {
-  ctx.font = '8px Galmuri7'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-  const t = p.msg.length > 14 ? p.msg.slice(0, 13) + '…' : p.msg, n = p.name, px = Math.round(sx(p)), py = Math.round(sy(p));
-  const w = Math.ceil(Math.max(ctx.measureText(t).width, ctx.measureText(n).width)) + 6;
-  const bx = Math.max(1, Math.min(W - w - 1, px - Math.round(w / 2))), by = Math.max(1, py - 48);
-  ctx.fillStyle = OUT; ctx.fillRect(bx - 1, by - 1, w + 2, 22); ctx.fillRect(px - 2, by + 21, 4, 2);
-  ctx.fillStyle = '#fff'; ctx.fillRect(bx, by, w, 20); ctx.fillRect(px - 1, by + 20, 2, 2);
-  ctx.fillStyle = '#9a7a48'; ctx.fillText(n, bx + 3, by + 1); ctx.fillStyle = '#111835'; ctx.fillText(t, bx + 3, by + 10);
+function drawBubble(p) { // 흰 둥근 말풍선(2배 해상도로 또렷하게)
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.font = '15px Galmuri11'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+  const t = p.msg.length > 16 ? p.msg.slice(0, 15) + '…' : p.msg, X = Math.round(sx(p) * 2), Y = Math.round(sy(p) * 2);
+  const w = Math.ceil(ctx.measureText(t).width) + 16, h = 26, bx = Math.max(2, Math.min(W * 2 - w - 2, X - Math.round(w / 2))), by = Math.max(2, Y - 46 - h - 8);
+  ctx.fillStyle = OUT; ctx.fillRect(bx + 2, by - 2, w - 4, h + 4); ctx.fillRect(bx - 2, by + 2, w + 4, h - 4); ctx.fillRect(bx, by, w, h);
+  ctx.fillStyle = '#fff'; ctx.fillRect(bx + 2, by, w - 4, h); ctx.fillRect(bx, by + 2, w, h - 4);
+  ctx.fillStyle = OUT; ctx.fillRect(X - 5, by + h, 10, 3); ctx.fillRect(X - 3, by + h + 3, 6, 2); ctx.fillRect(X - 1, by + h + 5, 2, 2);
+  ctx.fillStyle = '#fff'; ctx.fillRect(X - 3, by + h - 1, 6, 3); ctx.fillRect(X - 1, by + h + 2, 2, 2);
+  ctx.fillStyle = '#111835'; ctx.fillText(t, bx + 8, by + 6);
+  ctx.restore();
 }
 function draw() {
   ctx.setTransform(2, 0, 0, 2, 0, 0); ctx.imageSmoothingEnabled = false;
@@ -795,7 +829,21 @@ function resetToTitle() {
   if (field.mode === 'penalty') endPen();
   cur = null; go('title');
 }
-$('#s-title').addEventListener('click', () => { audio(); sfx('start'); go('mode') });
+$('#startBtn').addEventListener('click', () => { audio(); sfx('start'); go('mode') });
+$('#bookBtn').addEventListener('click', () => { audio(); sfx('blip'); go('book') });
+enter.book = () => {
+  const box = $('#bookList'); box.innerHTML = '';
+  const list = records.filter(r => r.message).slice().reverse();
+  $('#bookCount').textContent = list.length;
+  if (!list.length) box.innerHTML = '<p style="grid-column:1/-1;color:#a9b1c6">아직 남긴 한마디가 없습니다. 첫 번째 주인공이 되어 주시기 바랍니다.</p>';
+  list.forEach(r => {
+    const c = document.createElement('div'); c.className = 'card';
+    const cv2 = document.createElement('canvas'); cv2.width = SW; cv2.height = SH; cv2.getContext('2d').drawImage(sprite(r.look, 0), 0, 0);
+    const b = document.createElement('b'), m = document.createElement('p'), s = document.createElement('small');
+    b.textContent = r.nick; m.textContent = r.message; s.textContent = new Date(r.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+    c.append(cv2, b, m, s); box.appendChild(c);
+  });
+};
 $('#autoBtn').addEventListener('click', () => { sfx('coin'); cur = newCur('auto'); go('char') });
 
 enter.consent = () => { $('#agree').checked = false; $('#agreeBtn').disabled = true };
@@ -927,7 +975,7 @@ async function finish(message) {
   if (!cur) return; cur.message = message;
   const rec = { ts: new Date().toISOString(), mode: cur.mode, nick: cur.nick, team: cur.team, look: cur.look, goals: cur.goals, score: scoreOf(cur), q1: cur.survey[0], q2: cur.survey[1], q3: cur.survey[2], message };
   try { if (!dbOk) throw new Error('no db'); rec.id = await DB.add(rec) } catch (e) { console.error(e); rec.id = 'mem' + Date.now(); $('#saveWarn').classList.remove('hidden') }
-  records.push(rec); hudStats();
+  records.push(rec); hudStats(); syncAll();
   const k = field.kicker; if (k) { Object.assign(k, { id: rec.id, msg: message, name: rec.nick, bubble: message ? 6 : 0 }) }
   const npc = field.players.find(p => p.npc); if (npc) field.players.splice(field.players.indexOf(npc), 1);
   go('clear');
@@ -960,8 +1008,28 @@ let lp = 0;
 $('#logoBtn').addEventListener('pointerdown', () => { lp = setTimeout(openAdmin, 2000) });
 ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('#logoBtn').addEventListener(ev, () => clearTimeout(lp)));
 function openAdmin() { if (prompt('관리자 PIN을 입력해 주시기 바랍니다') !== '1107') return; resetToTitle(); go('admin') }
+/* ===================== 서버 전송 (n8n 웹훅 → 클럽 구글 시트). 사진은 보내지 않는다 ===================== */
+const SYNC_URL = 'https://flow.illey.me/webhook/metacity-arena-guestbook';
+let PAD = '';
+try { PAD = localStorage.getItem('mtct-pad') || '' } catch {}
+if (!PAD) { PAD = 'PAD-' + Math.random().toString(36).slice(2, 6).toUpperCase(); try { localStorage.setItem('mtct-pad', PAD) } catch {} }
+let syncing = false;
+async function syncAll() {
+  if (syncing || !navigator.onLine) return; syncing = true;
+  try {
+    for (const r of records.filter(r => !r.synced)) {
+      const body = { uid: `${PAD}-${r.id}`, pad: PAD, ts: r.ts, mode: r.mode, nick: r.nick, team: r.team, goals: r.goals, score: r.score, q1: r.q1, q2: r.q2, q3: r.q3, message: r.message, look: r.look };
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
+      const res = await fetch(SYNC_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal }).finally(() => clearTimeout(to));
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      r.synced = true; if (dbOk && typeof r.id === 'number') await DB.put(r);
+    }
+  } catch (e) { console.warn('전송 대기:', e.message) } finally { syncing = false }
+}
+setInterval(syncAll, 30000); addEventListener('online', syncAll);
+
 enter.admin = () => {
-  $('#admCount').textContent = records.length;
+  $('#admCount').textContent = records.length + ` (서버 전송 ${records.filter(r => r.synced).length} · 대기 ${records.filter(r => !r.synced).length}, 이 패드 ${PAD})`;
   $('#admInfo').innerHTML = (dbOk ? '패드 브라우저에 저장 중입니다.' : '<b style="color:#ff8a8a">저장소를 열지 못했습니다. 개인정보 보호(시크릿) 모드인지 확인해 주시기 바랍니다.</b>') +
     ' 행사 중간중간 CSV · JSON을 내려받아 백업해 주시기 바랍니다. 브라우저 데이터를 지우면 함께 지워집니다.';
 };
@@ -1007,6 +1075,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 (async () => {
+  setTimeout(syncAll, 3000);
   setMute(AU.muted);
   try { await DB.open(); records = await DB.all(); dbOk = true } catch (e) { console.error(e); $('#saveWarn').classList.remove('hidden') }
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist() } catch {}
