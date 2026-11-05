@@ -11,7 +11,18 @@
 |---|---|---|
 | 사진 → 캐릭터 | 브라우저 안에서 얼굴 원 안의 피부 · 머리 · 옷 색을 뽑아 32비트풍 도트 선수(2026 디아도라 홈 · 원정 유니폼)에 입힘 | 와이파이 · 비용 · 대기 0, 아이 얼굴을 외부로 보내지 않음 |
 | 원본 사진 | 저장하지 않음(변환 직후 메모리에서 지움) | 개인정보 최소 수집 |
-| 저장 | 패드 브라우저 IndexedDB. 관리자 화면에서 CSV · JSON · 캐릭터 모음 PNG로 내려받기 | 서버 없이 오프라인 동작 |
+| 저장 | ① 패드 브라우저 IndexedDB(먼저 저장) ② n8n 웹훅 → 구글 시트로 전송(실패 시 30초마다 재전송). 관리자 화면에서 CSV · JSON · 캐릭터 모음 PNG도 내려받기 | 와이파이가 끊겨도 기록을 잃지 않음 |
+
+### 구글 시트 연동
+
+- 시트: [메타시티아레나_오픈방명록_2026-11-07](https://docs.google.com/spreadsheets/d/1kps2BJnZsB0IYNAtn5_Q9QNVdu0llzb591LLno1hi1I/edit) (light.ez.jjack@gmail.com 드라이브)
+- n8n 플로우: `메타시티아레나_오픈방명록_시트저장` (flow.illey.me, id `uQseQ04KYckjbvhq`, 켜짐)
+  - 웹훅 `POST /webhook/metacity-arena-guestbook` → 검사 → **n8n 데이터 테이블 `metacity_arena_guestbook`**(id `cxIne8irFpi8pnJo`)에 uid 기준 저장 → 응답 → 테이블 전체를 CSV로 만들어 구글 시트를 통째로 덮어쓴다.
+  - 원본은 데이터 테이블이다. 시트는 보기용이라 직접 고쳐도 다음 참여 때 덮어써진다.
+- 인증: n8n `Google Drive account (light.ez.jjack@gmail.com)` 연결의 드라이브 API만 쓴다(Google Sheets API를 켤 필요 없음).
+- 보내는 것: 닉네임 · 팀 · 골 · 점수 · 설문 3개 · 방명록 · 캐릭터 값 · 패드 번호. 사진은 보내지 않는다.
+- 재전송돼도 uid 가 같으면 한 줄로 합쳐진다. 잘못된 형식의 요청은 거절한다.
+- **행사 전 시험 기록 지우기:** 패드는 관리자 → 전체 지우기, 서버는 n8n → Data tables → `metacity_arena_guestbook` 에서 줄 삭제(시트는 다음 참여 때 맞춰진다). 2026-11-05 연동 시험 기록은 이미 지웠다.
 | 동의 | 사진 경로에만 촬영 안내 + 동의 체크. 자동 생성은 사진 없이 참여 | |
 
 보관 기간 "행사 뒤 3개월 안에 지웁니다"는 제안값입니다. 클럽과 확정해 주시기 바랍니다.
