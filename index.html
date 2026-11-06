@@ -37,6 +37,7 @@ input,textarea{-webkit-user-select:text;user-select:text}
 .hud-r b{font:700 22px var(--mono);color:var(--cream)}
 .icon-btn{width:48px;height:48px;font:700 22px var(--f);color:var(--cream);background:var(--navy-8);border:0;box-shadow:0 0 0 3px var(--navy-6)}
 .icon-btn.off{color:var(--navy-6);text-decoration:line-through}
+.icon-btn.on{color:var(--led)}
 #saveWarn{color:#ff8a8a;font-size:13px}
 
 /* 무대 */
@@ -230,6 +231,7 @@ textarea{resize:none;line-height:1.5}
       <span id="saveWarn" class="hidden">⚠ 저장 안 됨</span>
       <div><small>PLAYERS</small><b id="hudCount">000</b></div>
       <div><small>HI-SCORE</small><b id="hudHi">00000</b></div>
+      <button id="fsBtn" class="icon-btn" aria-label="전체화면 켜기 · 끄기">⛶</button>
       <button id="muteBtn" class="icon-btn" aria-label="소리 켜기 · 끄기">♪</button>
     </div>
   </header>
@@ -1346,7 +1348,17 @@ $('#admPng').addEventListener('click', async () => {
   });
   c.toBlob(b => download(b, `메타시티아레나_선수모음_${stamp()}.png`));
 });
-$('#admFull').addEventListener('click', () => { const d = document.documentElement; (d.requestFullscreen || d.webkitRequestFullscreen)?.call(d) });
+/* 전체화면: 오른쪽 위 ⛶ 버튼 · 관리자 화면. 지원하지 않는 기기(iPhone · 홈 화면 앱)에서는 버튼을 숨긴다 */
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+function toggleFs() {
+  const d = document.documentElement;
+  if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+  else (d.requestFullscreen || d.webkitRequestFullscreen)?.call(d)?.catch?.(() => {});
+}
+if (!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen) || matchMedia('(display-mode: standalone)').matches || navigator.standalone) $('#fsBtn').classList.add('hidden');
+['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, () => $('#fsBtn').classList.toggle('on', !!fsEl())));
+$('#fsBtn').addEventListener('click', e => { e.stopPropagation(); sfx('blip'); toggleFs() });
+$('#admFull').addEventListener('click', toggleFs);
 $('#admReset').addEventListener('click', async () => {
   if (prompt(`참여 ${records.length}명의 기록을 모두 지웁니다. 계속하려면 "삭제"를 입력해 주시기 바랍니다.`) !== '삭제') return;
   try { if (dbOk) await DB.clear() } catch (e) { alert('지우지 못했습니다: ' + e) ; return }
