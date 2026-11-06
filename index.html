@@ -59,6 +59,8 @@ p{word-break:keep-all}
 .small{font-size:14px;color:#a9b1c6;line-height:1.6}
 .row{display:flex;justify-content:center;flex-wrap:wrap;gap:14px;margin-top:16px}
 .hidden{display:none!important}
+.silhouette{filter:brightness(0);opacity:.28;animation:sil 1.2s ease-in-out infinite alternate}
+@keyframes sil{to{opacity:.12}}
 
 .px-btn{font:700 20px/1.2 var(--f);color:var(--cream);background:var(--navy-7);border:0;padding:14px 24px;min-height:58px;margin:4px;
   box-shadow:inset -4px -4px 0 rgba(0,0,0,.35),inset 4px 4px 0 rgba(255,255,255,.14),0 0 0 4px var(--ink)}
@@ -667,7 +669,8 @@ function mkPlayer(o) {
 function refreshField() {
   const keep = field.kicker; field.players = [];
   records.slice(-40).forEach(r => field.players.push(mkPlayer({ look: r.look, name: r.nick, msg: r.message, id: r.id, img: recImg(r.img) }))); // ponytail: 최근 40명만 구장에 띄움. 많아지면 순번 교대
-  ['MTCT', 'ARENA', 'FC', 'U12'].slice(0, Math.max(0, 4 - records.length)).forEach((n, i) => field.players.push(mkPlayer({ look: randLook(TEAMS[i % 2]), name: n, npc: true })));
+  // 참가자가 적을 때 채우는 선수(AI 로 미리 그려 둔 홈 · 원정 2명씩)
+  ['MTCT', 'ARENA', 'FC', 'U12'].slice(0, Math.max(0, 4 - records.length)).forEach((n, i) => field.players.push(mkPlayer({ look: randLook(TEAMS[i % 2]), name: n, npc: true, img: recImg(`assets/npc-${i + 1}.png`) })));
   // 정해승 감독(블로그 사진으로 만든 AI 그림): 공은 쫓지 않고 사이드라인을 오가며 응원한다
   field.players.push(mkPlayer({ look: randLook('HOME'), name: '정해승 감독', coach: true, img: recImg('assets/coach.png'), a: A - 6, l: coachL(), speed: 14, msgs: COACH_MSGS, msg: COACH_MSGS[0] }));
   if (keep) field.players.push(keep);
@@ -899,7 +902,11 @@ function drawPK() {
   const ks = gkH * 2 / 47, kw = 32 * ks, kh = 47 * ks, KX = Math.round(P.kx * 2), KY = Math.round(G.gy1 * 2);
   ctx.translate(KX, KY);
   if (P.phase === 'after' && P.saved) { ctx.translate((tx < G.sx ? -1 : 1) * 10, -6); ctx.rotate((tx < G.sx ? -1 : 1) * .9) }
-  ctx.drawImage(sprite(GK_LOOK, P.phase === 'aim' ? Math.floor(field.t * 6) % 2 : 0), -kw / 2, -kh + 4, kw, kh);
+  const gi = recImg('assets/gk.png');
+  if (gi.complete && gi.naturalWidth) { // AI 골키퍼. 기다릴 때 좌우로 들썩인다
+    const w = gi.naturalWidth * kh / gi.naturalHeight, bob = P.phase === 'aim' && Math.floor(field.t * 6) % 2 ? 4 : 0;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(gi, -w / 2, -kh - bob, w, kh);
+  } else ctx.drawImage(sprite(GK_LOOK, P.phase === 'aim' ? Math.floor(field.t * 6) % 2 : 0), -kw / 2, -kh + 4, kw, kh);
   ctx.restore();
   // 골대 기둥 · 크로스바
   R(G.gx0 - 2.5, G.gy0 - 2.5, 2.5, G.gh + 2.5, '#fff'); R(G.gx0 + G.gw, G.gy0 - 2.5, 2.5, G.gh + 2.5, '#fff'); R(G.gx0 - 2.5, G.gy0 - 2.5, G.gw + 5, 2.5, '#fff');
@@ -1114,9 +1121,10 @@ $$('.cyc button').forEach(b => b.addEventListener('click', () => {
   renderCyc();
 }));
 function renderChar() {
-  const st = cur.aiState, ai = st === 'ok' && cur.img;
-  $('#charImg').classList.toggle('hidden', !ai); $('#charView').classList.toggle('hidden', !!ai);
-  if (ai) $('#charImg').src = cur.img;
+  const st = cur.aiState, ai = st === 'ok' && cur.img, busy = st === 'busy';
+  // 그리는 동안은 도트 선수 대신 검은 실루엣. 도트는 AI 가 실패했을 때만
+  $('#charImg').classList.toggle('hidden', !ai && !busy); $('#charImg').classList.toggle('silhouette', busy); $('#charView').classList.toggle('hidden', !!ai || busy);
+  if (ai) $('#charImg').src = cur.img; else if (busy) $('#charImg').src = 'assets/npc-1.png';
   $('#aiBusy').classList.toggle('hidden', st !== 'busy');
   $$('.cyc').forEach(el => el.classList.toggle('hidden', st !== 'fail')); // AI 그림이면 꾸미기 대신 다시 그리기
   $('#aiNote').textContent = st === 'busy' ? 'AI가 메타시티 유니폼을 입은 선수를 그리고 있습니다. 그동안 닉네임을 적어 주시기 바랍니다.'
@@ -1247,7 +1255,7 @@ async function regenOld() {
   } catch (e) { r.aiFail = (r.aiFail || 0) + 1; console.warn('다시 그리기 실패:', r.nick, e.message) }
   finally { regenBusy = false; if (typeof r.id === 'number') await DB.put(r).catch(() => {}) }
 }
-setInterval(regenOld, 20000); // ponytail: 20초에 한 명. 100명이면 30분쯤 걸린다
+setInterval(regenOld, 8000); // ponytail: 8초마다 한 명(한 장 10~15초라 실제로는 약 20초에 한 명)
 
 enter.admin = () => {
   $('#admCount').textContent = records.length + ` (서버 전송 ${records.filter(r => r.synced).length} · 대기 ${records.filter(r => !r.synced).length}, 이 패드 ${PAD})`;
