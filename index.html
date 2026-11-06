@@ -915,9 +915,12 @@ function drawPK() {
   }
   // 골키퍼. 막았으면 그쪽으로 몸을 날린다
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
-  const ks = gkH * 2 / 47, kw = 32 * ks, kh = 47 * ks, KX = Math.round(P.kx * 2), KY = Math.round(G.gy1 * 2);
+  const dv = tx < G.sx ? -1 : 1, diving = P.phase === 'after' && P.saved;
+  let fx = P.kx;
+  if (diving) { const reach = gkH * Math.sin(.9) + gkH * .3 * Math.cos(.9) + 7; fx = dv > 0 ? Math.min(fx, G.gx0 + G.gw - reach) : Math.max(fx, G.gx0 + reach) } // 쓰러져도 손끝이 골대 안에 남게 발을 안쪽으로
+  const ks = gkH * 2 / 47, kw = 32 * ks, kh = 47 * ks, KX = Math.round(fx * 2), KY = Math.round(G.gy1 * 2);
   ctx.translate(KX, KY);
-  if (P.phase === 'after' && P.saved) { ctx.translate((tx < G.sx ? -1 : 1) * 10, -6); ctx.rotate((tx < G.sx ? -1 : 1) * .9) }
+  if (diving) { ctx.translate(dv * 10, -6); ctx.rotate(dv * .9) }
   const gi = recImg('assets/gk.png');
   if (gi.complete && gi.naturalWidth) { // AI 골키퍼. 기다릴 때 좌우로 들썩인다
     const w = gi.naturalWidth * kh / gi.naturalHeight, bob = P.phase === 'aim' && Math.floor(field.t * 6) % 2 ? 4 : 0;
