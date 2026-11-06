@@ -742,12 +742,36 @@ function drawPlayer(p) {
   }
   if (p.me) { const by = y - (p.img ? AI_H / 2 + 6 : 29) + (Math.floor(field.t * 4) % 2); ctx.fillStyle = '#ffd36b'; ctx.fillRect(x - 3, by, 7, 1); ctx.fillRect(x - 2, by + 1, 5, 1); ctx.fillRect(x - 1, by + 2, 3, 1); ctx.fillRect(x, by + 3, 1, 1) }
 }
+// 구장 공: 2배 캔버스에 8×8 도트 축구공, 굴러가면 두 장을 번갈아
+const BALL_PX = [
+  ['..oooo..', '.owkkwo.', 'owwkkwwo', 'okwwwwko', 'owwwwwgo', 'owkwwkgo', '.ogwwgo.', '..oooo..'],
+  ['..oooo..', '.okwwko.', 'owwwwwwo', 'owwkkwwo', 'owwkkwgo', 'okwwwwko', '.owggko.', '..oooo..']];
+const BALL_C = { o: OUT, w: '#fafafa', k: '#1d2233', g: '#b9bfcc' };
 function drawBall(b) {
   const x = Math.round(sx(b)), y = Math.round(sy(b)), z = Math.round(b.z);
-  drawShadow(x, y, 4);
-  ctx.fillStyle = '#0e1020'; ctx.fillRect(x - 2, y - z - 4, 4, 4);
-  ctx.fillStyle = '#f6f6f6'; ctx.fillRect(x - 1, y - z - 4, 2, 4); ctx.fillRect(x - 2, y - z - 3, 4, 2);
-  ctx.fillStyle = '#0e1020'; ctx.fillRect(x, y - z - 3, 1, 1);
+  drawShadow(x, y, 5);
+  const f = BALL_PX[Math.abs(b.va) + Math.abs(b.vl) > 5 ? Math.floor(field.t * 10) % 2 : 0], X = x * 2 - 4, Y = (y - z) * 2 - 8;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  f.forEach((row, j) => { for (let i = 0; i < 8; i++) { const c = BALL_C[row[i]]; if (c) { ctx.fillStyle = c; ctx.fillRect(X + i, Y + j, 1, 1) } } });
+  ctx.restore();
+}
+// 승부차기 공: 오각형 무늬 · 그림자 · 하이라이트, rot 만큼 돌아간다 (x, y, r 은 2배 캔버스 px)
+function drawSoccer(g, x, y, r, rot) {
+  const pent = (cx, cy, s, a) => { g.beginPath(); for (let k = 0; k < 5; k++) { const t = a + k * 1.2566 - Math.PI / 2; g.lineTo(cx + Math.cos(t) * s, cy + Math.sin(t) * s) } g.closePath(); g.fill() };
+  g.save(); g.translate(x, y);
+  g.fillStyle = OUT; g.beginPath(); g.arc(0, 0, r + 1.6, 0, 7); g.fill();
+  g.fillStyle = '#fafafa'; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill(); g.clip();
+  g.fillStyle = '#1d2233'; g.strokeStyle = '#7d8495'; g.lineWidth = Math.max(.8, r * .07);
+  pent(0, 0, r * .36, rot);
+  for (let k = 0; k < 5; k++) {
+    const t = rot + k * 1.2566 - Math.PI / 2, t2 = t + .6283;
+    g.beginPath(); g.moveTo(Math.cos(t) * r * .36, Math.sin(t) * r * .36); g.lineTo(Math.cos(t) * r, Math.sin(t) * r); g.stroke();
+    pent(Math.cos(t2) * r * .98, Math.sin(t2) * r * .98, r * .34, t2 + Math.PI * 1.5);
+  }
+  const sh = g.createRadialGradient(-r * .3, -r * .35, r * .2, 0, 0, r * 1.05); sh.addColorStop(0, 'rgba(20,28,60,0)'); sh.addColorStop(1, 'rgba(20,28,60,.42)');
+  g.fillStyle = sh; g.fillRect(-r, -r, r * 2, r * 2);
+  g.fillStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.ellipse(-r * .38, -r * .42, r * .22, r * .12, -.6, 0, 7); g.fill();
+  g.restore();
 }
 function drawBubble(p) { // 흰 둥근 말풍선(2배 해상도로 또렷하게)
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -777,7 +801,7 @@ let pen = null;
 const GK_LOOK = { skin: 2, hair: 1, hairColor: 0, team: 'GK', boots: 5 };
 function pkGeom() {
   // 가로 화면은 아래 버튼 띠에 가리지 않게 골대를 작게 · 공 지점을 위로
-  const gw = portrait ? W * 0.82 : H * 0.85, gh = gw * (portrait ? 0.42 : 0.36), gx0 = (W - gw) / 2, gy0 = Math.round(H * (portrait ? 0.27 : 0.22));
+  const gw = portrait ? W * 0.82 : H * 0.85, gh = gw * (portrait ? 0.42 : 0.36), gx0 = (W - gw) / 2, gy0 = Math.round(H * (portrait ? 0.27 : 0.18));
   return { gw, gh, gx0, gy0, gy1: gy0 + gh, sx: W / 2, sy: Math.round(H * (portrait ? 0.72 : 0.6)) };
 }
 function zoomFx(cls, swap) { cv.classList.remove('zoom-in', 'zoom-out'); void cv.offsetWidth; cv.classList.add(cls); setTimeout(swap, 280) }
@@ -854,17 +878,19 @@ function drawPK() {
   for (let x = G.gx0; x <= G.gx0 + G.gw; x += 4) ctx.fillRect(x, G.gy0, .6, G.gh);
   for (let y = G.gy0; y <= G.gy1; y += 4) ctx.fillRect(G.gx0, y, G.gw, .6);
   // 공 위치(원근: 멀어질수록 작게)
+  // 크기 기준: 골키퍼 키 = 골대 높이의 78%, 공 지름 ≈ 키의 15%, 공 지점은 골라인보다 1.35배 가깝다
+  const gkH = G.gh * .78, rG = gkH * .075, rS = rG * 1.35;
   const tx = G.sx + P.aim * G.gw * .32, ty = G.gy0 + G.gh * .5;
-  let bx = G.sx, by = G.sy, br = 5.5, gy = G.sy;
-  if (P.phase === 'fly') { const u = P.u; bx = G.sx + (tx - G.sx) * u; gy = G.sy + (G.gy1 - G.sy) * u; by = gy + (ty - G.gy1) * u - Math.sin(u * Math.PI) * 14; br = 5.5 - 3 * u }
+  let bx = G.sx, by = G.sy, br = rS, gy = G.sy, spin = 0;
+  if (P.phase === 'fly') { const u = P.u; bx = G.sx + (tx - G.sx) * u; gy = G.sy + (G.gy1 - G.sy) * u; by = gy + (ty - G.gy1) * u - Math.sin(u * Math.PI) * 14; br = rS + (rG - rS) * u; spin = u * 9 }
   else if (P.phase === 'after') {
     const v = Math.min(1, P.t / .7);
-    if (P.saved) { bx = tx + (P.aim || 1) * -1 * 0 + (tx < G.sx ? -1 : 1) * 30 * v; gy = G.gy1 + 30 * v; by = gy - Math.sin(v * Math.PI) * 12; br = 2.5 + 2 * v }
-    else { bx = tx; gy = G.gy1 - 2; by = ty + (G.gy1 - 3 - ty) * Math.min(1, P.t * 2.5); br = 2.5 }
+    if (P.saved) { bx = tx + (tx < G.sx ? -1 : 1) * 30 * v; gy = G.gy1 + 30 * v; by = gy - Math.sin(v * Math.PI) * 12; br = rG + (rS - rG) * v * .6; spin = 9 + v * 5 }
+    else { bx = tx; gy = G.gy1 - 2; by = ty + (G.gy1 - 3 - ty) * Math.min(1, P.t * 2.5); br = rG * .95; spin = 9 }
   }
-  // 골키퍼(크게). 막았으면 그쪽으로 몸을 날린다
+  // 골키퍼. 막았으면 그쪽으로 몸을 날린다
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
-  const ks = Math.max(2, Math.round(G.gh * 2 * .92 / 47)), kw = 32 * ks, kh = 47 * ks, KX = Math.round(P.kx * 2), KY = Math.round(G.gy1 * 2);
+  const ks = gkH * 2 / 47, kw = 32 * ks, kh = 47 * ks, KX = Math.round(P.kx * 2), KY = Math.round(G.gy1 * 2);
   ctx.translate(KX, KY);
   if (P.phase === 'after' && P.saved) { ctx.translate((tx < G.sx ? -1 : 1) * 10, -6); ctx.rotate((tx < G.sx ? -1 : 1) * .9) }
   ctx.drawImage(sprite(GK_LOOK, P.phase === 'aim' ? Math.floor(field.t * 6) % 2 : 0), -kw / 2, -kh + 4, kw, kh);
@@ -873,15 +899,18 @@ function drawPK() {
   R(G.gx0 - 2.5, G.gy0 - 2.5, 2.5, G.gh + 2.5, '#fff'); R(G.gx0 + G.gw, G.gy0 - 2.5, 2.5, G.gh + 2.5, '#fff'); R(G.gx0 - 2.5, G.gy0 - 2.5, G.gw + 5, 2.5, '#fff');
   // 공 그림자 · 공
   ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(bx, gy + 1, br * .9, br * .35, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = OUT; ctx.beginPath(); ctx.arc(bx, by - br, br + .8, 0, 7); ctx.fill();
-  ctx.fillStyle = '#fafafa'; ctx.beginPath(); ctx.arc(bx, by - br, br, 0, 7); ctx.fill();
-  ctx.fillStyle = OUT; ctx.beginPath(); ctx.arc(bx, by - br, br * .35, 0, 7); ctx.fill();
-  // 키커 뒷모습(아래쪽, 크게)
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); drawSoccer(ctx, bx * 2, (by - br) * 2, br * 2, spin); ctx.restore();
+  // 키커 뒷모습: 카메라에 가까우니 골키퍼보다 크게
   if (cur) {
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
-    const s2 = portrait ? 3 : 2, step = P.phase === 'run' ? Math.min(1, P.t / .3) : (P.phase === 'fly' || P.phase === 'after' || P.phase === 'done') ? 1 : 0;
-    const X2 = Math.round((G.sx - 30 + step * 16) * 2), Y2 = Math.round((G.sy + 30 - step * 14) * 2); // 공 왼쪽 뒤에서 달려든다
-    ctx.drawImage(sprite(cur.look, P.phase === 'run' ? 1 : 0, true), X2 - 16 * s2, Y2 - 47 * s2, 32 * s2, 47 * s2);
+    // 가로 화면은 세로 폭이 좁아 키커를 조금 작게 · 더 왼쪽에 세워 골키퍼를 가리지 않게
+    const s2 = gkH * (portrait ? 1.45 : 1.15) * 2 / 47, step = P.phase === 'run' ? Math.min(1, P.t / .3) : (P.phase === 'fly' || P.phase === 'after' || P.phase === 'done') ? 1 : 0;
+    const X2 = Math.round((G.sx - (portrait ? 40 : 58) + step * (portrait ? 12 : 16)) * 2), Y2 = Math.round((G.sy + (portrait ? 30 : 22) - step * 10) * 2); // 공 왼쪽 뒤에서 달려든다
+    const ki = recImg(cur.img);
+    if (ki && ki.complete && ki.naturalWidth) { // 만든 AI 선수 그대로(앞모습). 달릴 때 통통 튄다
+      const h = 47 * s2, w = ki.naturalWidth * h / ki.naturalHeight, bob = P.phase === 'run' && Math.floor(P.t * 20) % 2 ? 6 : 0;
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(ki, X2 - w / 2, Y2 - h - bob, w, h);
+    } else ctx.drawImage(sprite(cur.look, P.phase === 'run' ? 1 : 0, true), X2 - 16 * s2, Y2 - 47 * s2, 32 * s2, 47 * s2);
     ctx.restore();
   }
   // 위쪽: 3번 킥 결과 표시
@@ -921,8 +950,8 @@ function recImg(src) { if (!src) return null; let i = imgCache.get(src); if (!i)
 const DESC = { age: ['an 8 year old', 'a 10 year old', 'a 12 year old', 'a teenage', 'a young adult', 'a friendly 40 year old'], who: ['boy', 'girl'],
   hair: ['short black hair', 'messy brown hair', 'a high ponytail', 'long straight hair', 'a bob cut', 'curly hair', 'a buzz cut', 'two pigtails', 'a headband'] };
 const pickR = a => a[Math.floor(Math.random() * a.length)];
-async function aiGenerate(team, photo) {
-  const body = photo ? { mode: 'photo', team, photo } : { mode: 'auto', team, desc: `${pickR(DESC.age)} ${pickR(DESC.who)} with ${pickR(DESC.hair)}` };
+async function aiGenerate(team, photo, desc) {
+  const body = photo ? { mode: 'photo', team, photo } : { mode: 'auto', team, desc: desc || `${pickR(DESC.age)} ${pickR(DESC.who)} with ${pickR(DESC.hair)}` };
   const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 45000);
   try {
     const res = await fetch(GEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
@@ -1195,6 +1224,24 @@ async function syncAll() {
   } catch (e) { console.warn('전송 대기:', e.message) } finally { syncing = false }
 }
 setInterval(syncAll, 30000); addEventListener('online', syncAll);
+
+/* --- 예전에 도트로 남은 선수를 AI 그림으로 다시 그린다: 한 명씩, 참가자가 그림을 기다릴 때는 쉬고, 실패는 2번까지 --- */
+const HAIR_EN = { short: c => `short ${c} hair`, spiky: c => `spiky ${c} hair`, bob: c => `${c} hair in a bob cut`, long: c => `long straight ${c} hair`, pony: c => `${c} hair in a ponytail`, buzz: c => `a ${c} buzz cut`, cap: c => `${c} hair under a navy MTCT baseball cap` };
+const HAIRC_EN = ['black', 'dark brown', 'brown', 'light brown', 'blonde', 'platinum blonde', 'gray', 'auburn', 'blue', 'pink'];
+const SKIN_EN = ['very fair', 'fair', 'light tan', 'tan', 'brown', 'dark brown'];
+const lookDesc = l => `a child with ${HAIR_EN[(HAIRS[l.hair] || HAIRS[0])[0]](HAIRC_EN[l.hairColor] || 'black')} and ${SKIN_EN[l.skin] || 'fair'} skin`;
+let regenBusy = false;
+async function regenOld() {
+  if (regenBusy || !dbOk || !navigator.onLine || (cur && cur.aiState === 'busy')) return;
+  const r = records.find(r => !r.img && r.look && (r.aiFail || 0) < 2); if (!r) return;
+  regenBusy = true;
+  try {
+    r.img = await aiGenerate(r.team || r.look.team, null, lookDesc(r.look));
+    field.players.filter(p => p.id === r.id).forEach(p => p.img = recImg(r.img));
+  } catch (e) { r.aiFail = (r.aiFail || 0) + 1; console.warn('다시 그리기 실패:', r.nick, e.message) }
+  finally { regenBusy = false; if (typeof r.id === 'number') await DB.put(r).catch(() => {}) }
+}
+setInterval(regenOld, 20000); // ponytail: 20초에 한 명. 100명이면 30분쯤 걸린다
 
 enter.admin = () => {
   $('#admCount').textContent = records.length + ` (서버 전송 ${records.filter(r => r.synced).length} · 대기 ${records.filter(r => !r.synced).length}, 이 패드 ${PAD})`;
