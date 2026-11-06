@@ -13,6 +13,14 @@
 | 원본 사진 | 저장하지 않음(변환 직후 메모리에서 지움) | 개인정보 최소 수집 |
 | 저장 | ① 패드 브라우저 IndexedDB(먼저 저장) ② n8n 웹훅 → 구글 시트로 전송(실패 시 30초마다 재전송). 관리자 화면에서 CSV · JSON · 캐릭터 모음 PNG도 내려받기 | 와이파이가 끊겨도 기록을 잃지 않음 |
 
+### AI 캐릭터 (Gemini)
+
+- n8n 플로우 `메타시티아레나_캐릭터생성` (id `KfBro81Jea5gqDqQ`, 웹훅 `POST /webhook/metacity-arena-character`) → `gemini-3.1-flash-image`.
+- 참고 이미지 2장(SignalB Town 화풍 `assets/ref-style.png`, 2026 유니폼 `assets/ref-kit.jpg`)이 플로우 안에 들어 있다. 사진 모드는 참가자 사진(512×384 JPEG)을 함께 보내 닮은 선수를, 자동 생성은 무작위 설명으로 새 선수를 그린다.
+- 키오스크는 흰 배경을 지우고 높이 160px PNG로 줄여 패드에만 저장한다(시트로는 보내지 않음). 실패 · 45초 초과면 도트 선수로 대신한다.
+- 사진 원본은 패드 메모리에만 있다가 참여가 끝나면 버린다. n8n 실행 기록도 남기지 않는다(성공 · 실패 모두 저장 안 함).
+- 인증: n8n `Google Gemini (light.ez.notion@gmail.com)`. **이 키에 결제가 연결돼 있어야 그림이 나온다**(2026-11-06 기준 "Payment required").
+
 ### 구글 시트 연동
 
 - 시트: [메타시티아레나_오픈방명록_2026-11-07](https://docs.google.com/spreadsheets/d/1kps2BJnZsB0IYNAtn5_Q9QNVdu0llzb591LLno1hi1I/edit) (light.ez.jjack@gmail.com 드라이브)

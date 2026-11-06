@@ -42,6 +42,9 @@ input,textarea{-webkit-user-select:text;user-select:text}
 /* 무대 */
 #stage{position:relative;overflow:hidden;background:#000}
 #pitch{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;image-rendering:pixelated;image-rendering:crisp-edges}
+#pitch.zoom-in{animation:zin .56s ease-in-out} #pitch.zoom-out{animation:zout .56s ease-in-out}
+@keyframes zin{0%{transform:scale(1)}48%{transform:scale(2.6);opacity:.1}52%{transform:scale(1.3);opacity:.1}100%{transform:scale(1);opacity:1}}
+@keyframes zout{0%{transform:scale(1)}48%{transform:scale(.5);opacity:.1}52%{transform:scale(1.8);opacity:.1}100%{transform:scale(1);opacity:1}}
 .screen{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:16px;z-index:2}
 .screen.show{display:flex}
 .screen.bottom{align-items:flex-end;pointer-events:none}
@@ -127,6 +130,11 @@ p{word-break:keep-all}
 .char-grid{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;text-align:left}
 .char-stage{position:relative;background:linear-gradient(#2e8b3e 0 50%,#287d37 50%);background-size:100% 40px;padding:18px 26px 10px;box-shadow:0 0 0 4px var(--cream),0 0 0 8px var(--ink)}
 .char-stage canvas{display:block;width:clamp(120px,17vh,190px);aspect-ratio:32/47;image-rendering:pixelated}
+.char-stage img{display:block;height:clamp(176px,25vh,280px);max-width:min(220px,60vw);object-fit:contain;filter:drop-shadow(3px 4px 0 rgba(0,0,0,.35))}
+.ai-busy{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:8px;padding:10px;background:rgba(5,7,15,.55);font:700 15px var(--f);color:var(--led)}
+.ai-busy i{width:80%;height:10px;background:var(--navy-8);box-shadow:0 0 0 2px var(--cream);background-image:linear-gradient(90deg,var(--led) 0 30%,transparent 30%);background-size:200% 100%;animation:aibar 1s steps(10) infinite}
+@keyframes aibar{from{background-position:100% 0}to{background-position:-100% 0}}
+.ai-note{font:14px/1.5 var(--f);color:#a9b1c6;margin:8px 0 0}
 .char-num{position:absolute;left:8px;top:8px;font:700 14px var(--mono);color:var(--led);background:rgba(0,0,0,.6);padding:2px 6px}
 .cyc{display:grid;grid-template-columns:56px 1fr 56px;align-items:center;gap:10px;margin-bottom:10px}
 .cyc button{height:52px;font:700 20px var(--f);color:var(--cream);background:var(--navy-7);border:0;box-shadow:0 0 0 3px var(--ink)}
@@ -251,8 +259,8 @@ textarea{resize:none;line-height:1.5}
         <p class="kicker">STAGE 1 · CREATE PLAYER</p>
         <h2>선수 캐릭터를 어떻게 만드시겠습니까?</h2>
         <div class="mode-grid">
-          <button class="mode-card" data-go="consent"><span class="tag">PHOTO</span><span class="ico">📷</span><b>사진으로 만들기</b><small>얼굴을 찍으면 머리색 · 피부색을 닮은<br>도트 선수가 됩니다</small></button>
-          <button class="mode-card" id="autoBtn"><span class="tag">RANDOM</span><span class="ico">🎲</span><b>자동 생성</b><small>사진 없이 무작위로<br>도트 선수를 뽑습니다</small></button>
+          <button class="mode-card" data-go="consent"><span class="tag">PHOTO</span><span class="ico">📷</span><b>사진으로 만들기</b><small>얼굴을 찍으면 AI가 나를 닮은<br>메타시티 선수를 그립니다</small></button>
+          <button class="mode-card" id="autoBtn"><span class="tag">RANDOM</span><span class="ico">🎲</span><b>자동 생성</b><small>사진 없이 AI가<br>새 선수를 그립니다</small></button>
         </div>
         <button class="px-btn ghost" data-go="title">처음으로</button>
       </div>
@@ -263,7 +271,7 @@ textarea{resize:none;line-height:1.5}
         <p class="kicker">PHOTO · 촬영 안내</p>
         <h2>촬영 전에 확인해 주시기 바랍니다</h2>
         <ul class="consent-list">
-          <li>사진은 이 패드 안에서 도트 캐릭터를 만드는 데만 쓰고, <b>원본은 저장하지 않고 바로 지우며, 인터넷으로 보내지 않습니다.</b></li>
+          <li>사진은 캐릭터 그림을 만드는 데만 쓰고, 이를 위해 <b>구글 Gemini AI로 보냅니다.</b> 그림을 받은 뒤 사진 원본은 패드와 클럽 서버 어디에도 저장하지 않습니다.</li>
           <li>저장하는 것은 도트 캐릭터 · 닉네임 · 설문 답 · 방명록 한마디입니다.</li>
           <li>저장한 내용은 이 패드와 클럽 구글 시트에 모아 오픈 행사 결과 정리와 이 구장 화면에만 쓰고, 행사 뒤 3개월 안에 지웁니다.</li>
           <li>만 14세 미만은 보호자와 함께 확인해 주시기 바랍니다.</li>
@@ -297,12 +305,13 @@ textarea{resize:none;line-height:1.5}
       <div class="panel">
         <p class="kicker" id="charKicker">NEW PLAYER!</p>
         <div class="char-grid">
-          <div class="char-stage"><canvas id="charView" width="32" height="47"></canvas><div class="char-num" id="charNum">No.001</div></div>
+          <div class="char-stage"><canvas id="charView" width="32" height="47"></canvas><img id="charImg" class="hidden" alt="AI가 그린 내 선수"><div class="char-num" id="charNum">No.001</div><div class="ai-busy hidden" id="aiBusy"><b>AI가 그리는 중</b><i></i></div></div>
           <div class="char-ctrl">
             <div class="cyc" data-k="hair"><button data-d="-1">◀</button><span></span><button data-d="1">▶</button></div>
             <div class="cyc" data-k="hairColor"><button data-d="-1">◀</button><span></span><button data-d="1">▶</button></div>
             <div class="cyc" data-k="skin"><button data-d="-1">◀</button><span></span><button data-d="1">▶</button></div>
             <div class="cyc" data-k="team"><button data-d="-1">◀</button><span></span><button data-d="1">▶</button></div>
+            <p class="ai-note" id="aiNote"></p>
             <label class="field"><small>닉네임 · 8자까지 (실명 대신 별명을 권합니다)</small><input id="nick" maxlength="8" autocomplete="off" autocorrect="off" enterkeyhint="done" placeholder="예: 슛돌이"></label>
           </div>
         </div>
@@ -344,7 +353,7 @@ textarea{resize:none;line-height:1.5}
     <section class="screen dim" id="s-clear">
       <div class="panel clear-panel">
         <p class="kicker" style="font-size:22px">GAME CLEAR!</p>
-        <canvas id="clearView" width="32" height="47"></canvas>
+        <canvas id="clearView" width="32" height="47"></canvas><img id="clearImg" class="hidden" alt="내 선수" style="display:block;height:clamp(120px,18vh,200px);margin:0 auto 8px">
         <h2 id="clearName" style="margin-bottom:4px"></h2>
         <div class="score-big" id="clearScore">0</div>
         <ul class="score-rows" id="clearRows"></ul>
@@ -422,6 +431,7 @@ const SFX = {
   kick: t => { noise(t, .08, .3, 200); tone(170, t, .12, 'triangle', .3, 60) },
   goal: t => { ['C5', 'E5', 'G5', 'C6', 'G5', 'C6'].forEach((n, i) => tone(NOTE(n), t + i * .09, .16, 'square', .08)); noise(t + .1, 1.4, .12, 600) },
   save: t => ['G4', 'E4', 'C4'].forEach((n, i) => tone(NOTE(n), t + i * .11, .15, 'square', .08)),
+  whistle: t => { tone(2600, t, .18, 'square', .05, 2900); tone(2600, t + .22, .5, 'square', .05, 2900) },
   start: t => ['C5', 'G5', 'C6'].forEach((n, i) => tone(NOTE(n), t + i * .07, .12, 'square', .08)),
   clear: t => { [['C5', 0], ['E5', .12], ['G5', .24], ['C6', .36], ['E6', .6], ['C6', .72], ['G5', .84], ['C6', 1]].forEach(([n, d]) => tone(NOTE(n), t + d, .18, 'square', .08)); tone(NOTE('C3'), t, 1.2, 'triangle', .15) },
 };
@@ -580,8 +590,6 @@ function setGeom(pt) {
   LX = 10; RX = W - 10; LT = 56; LB = H - 20;
   A = pt ? RX - LX : LB - LT; L = pt ? LB - LT : RX - LX;
   cv.width = W * 2; cv.height = H * 2; ctx.imageSmoothingEnabled = false;
-  $('[data-aim="-1"]').textContent = pt ? '◀ 왼쪽' : '▲ 위쪽';
-  $('[data-aim="1"]').textContent = pt ? '오른쪽 ▶' : '▼ 아래쪽';
 }
 function fitStage() {
   const r = $('#stage').getBoundingClientRect(), pt = r.height >= r.width;
@@ -590,7 +598,7 @@ function fitStage() {
   setGeom(pt);
   if (first) return;
   const mv = e => { if (!e) return; e.a *= A / oA; e.l *= L / oL; e.retarget = 0 };
-  field.players.forEach(mv); field.balls.forEach(mv); mv(field.keeper); if (pen) mv(pen.ball);
+  field.players.forEach(mv); field.balls.forEach(mv);
   buildBg(EMB, ARENA);
 }
 addEventListener('resize', fitStage); addEventListener('orientationchange', () => setTimeout(fitStage, 200));
@@ -655,7 +663,7 @@ function mkPlayer(o) {
 }
 function refreshField() {
   const keep = field.kicker; field.players = [];
-  records.slice(-40).forEach(r => field.players.push(mkPlayer({ look: r.look, name: r.nick, msg: r.message, id: r.id }))); // ponytail: 최근 40명만 구장에 띄움. 많아지면 순번 교대
+  records.slice(-40).forEach(r => field.players.push(mkPlayer({ look: r.look, name: r.nick, msg: r.message, id: r.id, img: recImg(r.img) }))); // ponytail: 최근 40명만 구장에 띄움. 많아지면 순번 교대
   ['COACH', 'MTCT', 'ARENA', 'FC'].slice(0, Math.max(0, 4 - records.length)).forEach((n, i) => field.players.push(mkPlayer({ look: randLook(TEAMS[i % 2]), name: n, npc: true })));
   if (keep) field.players.push(keep);
 }
@@ -720,7 +728,11 @@ function drawPlayer(p) {
   drawShadow(x, y, 11);
   const X = Math.round(sx(p) * 2), Y = Math.round(sy(p) * 2); // 캐릭터는 2배 해상도 캔버스에 1:1로 그린다
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-  if (p.flip) { ctx.translate(X + 16, 0); ctx.scale(-1, 1); ctx.drawImage(s, 0, Y - 45) } else ctx.drawImage(s, X - 16, Y - 45);
+  if (p.img && p.img.complete && p.img.naturalWidth) { // AI 그림: 걸을 때 통통 튀게
+    const h = AI_H, w = Math.round(p.img.naturalWidth * h / p.img.naturalHeight), bob = p.moving && Math.floor(p.anim * 8) % 2 ? 3 : 0;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    if (p.flip) { ctx.translate(X, 0); ctx.scale(-1, 1); ctx.drawImage(p.img, -w / 2, Y - h - bob, w, h) } else ctx.drawImage(p.img, X - w / 2, Y - h - bob, w, h);
+  } else if (p.flip) { ctx.translate(X + 16, 0); ctx.scale(-1, 1); ctx.drawImage(s, 0, Y - 45) } else ctx.drawImage(s, X - 16, Y - 45);
   ctx.restore();
   if (p.name) { // 발밑 이름표(흰 글씨 + 어두운 테두리)
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -728,7 +740,7 @@ function drawPlayer(p) {
     ctx.strokeText(p.name, X, Y + 3); ctx.fillStyle = p.me ? '#ffd36b' : '#ffffff'; ctx.fillText(p.name, X, Y + 3);
     ctx.restore();
   }
-  if (p.me) { const by = y - 29 + (Math.floor(field.t * 4) % 2); ctx.fillStyle = '#ffd36b'; ctx.fillRect(x - 3, by, 7, 1); ctx.fillRect(x - 2, by + 1, 5, 1); ctx.fillRect(x - 1, by + 2, 3, 1); ctx.fillRect(x, by + 3, 1, 1) }
+  if (p.me) { const by = y - (p.img ? AI_H / 2 + 6 : 29) + (Math.floor(field.t * 4) % 2); ctx.fillStyle = '#ffd36b'; ctx.fillRect(x - 3, by, 7, 1); ctx.fillRect(x - 2, by + 1, 5, 1); ctx.fillRect(x - 1, by + 2, 3, 1); ctx.fillRect(x, by + 3, 1, 1) }
 }
 function drawBall(b) {
   const x = Math.round(sx(b)), y = Math.round(sy(b)), z = Math.round(b.z);
@@ -741,7 +753,7 @@ function drawBubble(p) { // 흰 둥근 말풍선(2배 해상도로 또렷하게)
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.font = '15px Galmuri11'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
   const t = p.msg.length > 16 ? p.msg.slice(0, 15) + '…' : p.msg, X = Math.round(sx(p) * 2), Y = Math.round(sy(p) * 2);
-  const w = Math.ceil(ctx.measureText(t).width) + 16, h = 26, bx = Math.max(2, Math.min(W * 2 - w - 2, X - Math.round(w / 2))), by = Math.max(2, Y - 46 - h - 8);
+  const w = Math.ceil(ctx.measureText(t).width) + 16, h = 26, bx = Math.max(2, Math.min(W * 2 - w - 2, X - Math.round(w / 2))), by = Math.max(2, Y - (p.img ? AI_H + 2 : 46) - h - 8);
   ctx.fillStyle = OUT; ctx.fillRect(bx + 2, by - 2, w - 4, h + 4); ctx.fillRect(bx - 2, by + 2, w + 4, h - 4); ctx.fillRect(bx, by, w, h);
   ctx.fillStyle = '#fff'; ctx.fillRect(bx + 2, by, w - 4, h); ctx.fillRect(bx, by + 2, w, h - 4);
   ctx.fillStyle = OUT; ctx.fillRect(X - 5, by + h, 10, 3); ctx.fillRect(X - 3, by + h + 3, 6, 2); ctx.fillRect(X - 1, by + h + 5, 2, 2);
@@ -750,60 +762,144 @@ function drawBubble(p) { // 흰 둥근 말풍선(2배 해상도로 또렷하게)
   ctx.restore();
 }
 function draw() {
+  if (pen && pen.view) return drawPK();
   ctx.setTransform(2, 0, 0, 2, 0, 0); ctx.imageSmoothingEnabled = false;
   if (bg) ctx.drawImage(bg, 0, 0); else { ctx.fillStyle = '#2e8b3e'; ctx.fillRect(0, 0, W, H) }
   const ents = field.players.map(p => [sy(p), () => drawPlayer(p)]).concat(field.balls.map(b => [sy(b), () => drawBall(b)]));
-  if (field.mode === 'penalty') { ents.push([sy(field.keeper), () => drawPlayer(field.keeper)], [sy(pen.ball), () => drawBall(pen.ball)]) }
   ents.sort((a, b) => a[0] - b[0]).forEach(e => e[1]());
   field.players.filter(p => p.bubble > 0 && p.msg).forEach(drawBubble);
   ctx.font = '16px Galmuri11'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const p of field.pops) { const y = Math.round(p.y - (1.6 - p.t) * 12); ctx.fillStyle = OUT; ctx.fillText(p.text, p.x + 1, y + 1); ctx.fillStyle = '#ffd36b'; ctx.fillText(p.text, p.x, y) }
 }
 
-/* ===================== 승부차기 (l=0 골대로: 세로는 위쪽, 가로는 오른쪽) ===================== */
+/* ===================== 승부차기: 구장에서 줌인해 키커 뒤에서 골대를 보는 화면 ===================== */
 let pen = null;
+const GK_LOOK = { skin: 2, hair: 1, hairColor: 0, team: 'GK', boots: 5 };
+function pkGeom() {
+  // 가로 화면은 아래 버튼 띠에 가리지 않게 골대를 작게 · 공 지점을 위로
+  const gw = portrait ? W * 0.82 : H * 0.85, gh = gw * (portrait ? 0.42 : 0.36), gx0 = (W - gw) / 2, gy0 = Math.round(H * (portrait ? 0.27 : 0.22));
+  return { gw, gh, gx0, gy0, gy1: gy0 + gh, sx: W / 2, sy: Math.round(H * (portrait ? 0.72 : 0.6)) };
+}
+function zoomFx(cls, swap) { cv.classList.remove('zoom-in', 'zoom-out'); void cv.offsetWidth; cv.classList.add(cls); setTimeout(swap, 280) }
 function startPen() {
   field.mode = 'penalty';
-  pen = { shot: 0, goals: 0, phase: 'walk', t: 0, aim: 0, ball: { a: A / 2, l: SPOT, z: 0, va: 0, vl: 0 }, to: null };
-  field.keeper = mkPlayer({ a: A / 2, l: 2, look: { skin: 2, hair: 1, hairColor: 0, team: 'GK', boots: 5 } });
-  const k = field.kicker; k.a = A / 2 + 24; k.l = L / 2 + 10; k.flip = false;
-  for (const b of field.balls) if (b.l < PEN_L + 10) { b.l = rand(PEN_L + 20, L - 10); b.va = b.vl = 0 }
+  pen = { shot: 0, goals: 0, phase: 'intro', t: 0, aim: 0, u: 0, saved: false, view: false, kx: W / 2, hist: [] };
   hudPen(); setAim(false); $('#kickNext').classList.add('hidden'); $('#aimRow').classList.remove('hidden');
-  $('#kickMsg').textContent = '선수가 페널티 지점으로 갑니다';
+  $('#kickMsg').textContent = '페널티킥! 골대 앞으로 갑니다';
+  sfx('whistle'); zoomFx('zoom-in', () => { if (pen) { pen.view = true; banner('PENALTY KICK', 'sm') } });
 }
 function setAim(on) { $$('.aim').forEach(b => b.disabled = !on) }
-const aimMsg = () => `SHOT ${pen.shot + 1}/3 · 골키퍼가 비운 쪽을 골라 눌러 주시기 바랍니다`;
+const aimMsg = () => `${pen.shot + 1}번째 킥 · 골키퍼가 없는 쪽을 골라 버튼이나 골대를 눌러 주시기 바랍니다`;
+function shoot(a) { if (!pen || pen.phase !== 'aim') return; pen.aim = a; pen.phase = 'run'; pen.t = 0; setAim(false) }
 function updatePen(dt) {
-  const k = field.kicker, P = pen, b = P.ball, kp = field.keeper; P.t += dt;
-  const ka = A / 2 + Math.sin(field.t * (2.2 + P.shot * .8)) * 15;
-  kp.flip = portrait && ka < kp.a; kp.a = ka; kp.l = 2; kp.back = false; kp.moving = true; kp.anim += dt;
-  if (P.phase === 'walk' || P.phase === 'back') {
-    if (moveTo(k, A / 2, STAND, 70, dt)) { P.phase = 'aim'; k.back = portrait; k.flip = false; setAim(true); $('#kickMsg').textContent = aimMsg() }
-  } else if (P.phase === 'run') {
-    if (moveTo(k, A / 2, SPOT + 5, 90, dt)) { P.phase = 'fly'; P.t = 0; sfx('kick'); P.to = { a: A / 2 + P.aim * 13, l: -6 } }
-  } else if (P.phase === 'fly') {
-    const u = Math.min(1, P.t / .38);
-    b.a = A / 2 + (P.to.a - A / 2) * u; b.l = SPOT + (P.to.l - SPOT) * u; b.z = Math.sin(u * Math.PI) * (P.aim ? 7 : 3);
-    if (u >= 1) {
+  const P = pen, G = pkGeom(); P.t += dt;
+  if (!(P.phase === 'after' && P.saved)) P.kx = G.sx + Math.sin(field.t * (2 + P.shot * .7)) * (G.gw / 2 - G.gw * .13);
+  if (P.phase === 'intro' && P.t > 1.4) { P.phase = 'aim'; setAim(true); $('#kickMsg').textContent = aimMsg() }
+  else if (P.phase === 'run' && P.t > .3) { P.phase = 'fly'; P.t = 0; sfx('kick') }
+  else if (P.phase === 'fly') {
+    P.u = Math.min(1, P.t / .45);
+    if (P.u >= 1) {
       P.phase = 'after'; P.t = 0;
-      if (Math.abs(kp.a - P.to.a) < 9) { b.vl = 110; b.va = rand(-50, 50); b.l = 4; sfx('save'); banner('SAVE!', 'sm'); $('#kickMsg').textContent = '골키퍼가 막았습니다' }
-      else { P.goals++; b.va = b.vl = 0; sfx('goal'); banner('GOAL!'); $('#kickMsg').textContent = '골입니다' }
+      P.saved = Math.abs(P.kx - (G.sx + P.aim * G.gw * .32)) < G.gw * .17;
+      P.hist.push(P.saved ? 'S' : 'G');
+      if (P.saved) { sfx('save'); banner('SAVE!', 'sm'); $('#kickMsg').textContent = '골키퍼가 막았습니다' }
+      else { P.goals++; sfx('goal'); banner('GOAL!'); $('#kickMsg').textContent = '골입니다' }
       hudPen();
     }
-  } else if (P.phase === 'after') {
-    b.a += b.va * dt; b.l += b.vl * dt; b.va *= Math.pow(.3, dt); b.vl *= Math.pow(.3, dt);
-    if (P.t > 1.5) {
-      P.shot++;
-      if (P.shot >= 3) { P.phase = 'done'; $('#aimRow').classList.add('hidden'); $('#kickNext').classList.remove('hidden'); $('#kickMsg').textContent = `3번 중 ${P.goals}골을 넣었습니다 · +${P.goals * 300}점`; banner(`${P.goals} GOAL`, 'sm'); sfx('coin') }
-      else { P.phase = 'back'; Object.assign(b, { a: A / 2, l: SPOT, z: 0, va: 0, vl: 0 }); hudPen() }
-    }
+  } else if (P.phase === 'after' && P.t > 1.6) {
+    P.shot++; P.saved = false; P.u = 0;
+    if (P.shot >= 3) { P.phase = 'done'; $('#aimRow').classList.add('hidden'); $('#kickNext').classList.remove('hidden'); $('#kickMsg').textContent = `3번 중 ${P.goals}골을 넣었습니다 · +${P.goals * 300}점`; banner(`${P.goals} GOAL`, 'sm'); sfx('coin') }
+    else { P.phase = 'aim'; P.t = 0; setAim(true); hudPen(); $('#kickMsg').textContent = aimMsg() }
   }
 }
-$$('.aim').forEach(btn => btn.addEventListener('click', () => {
-  if (!pen || pen.phase !== 'aim') return;
-  pen.aim = +btn.dataset.aim; pen.phase = 'run'; setAim(false);
-}));
-function endPen() { field.mode = 'attract'; pen = null; hudScore() }
+$$('.aim').forEach(btn => btn.addEventListener('click', () => shoot(+btn.dataset.aim)));
+cv.addEventListener('pointerdown', e => { // 골대를 직접 눌러 차기
+  if (!pen || !pen.view || pen.phase !== 'aim') return;
+  const r = cv.getBoundingClientRect(), s = Math.min(r.width / W, r.height / H), fx = (e.clientX - r.left - (r.width - W * s) / 2) / s, G = pkGeom(), rel = (fx - G.gx0) / G.gw;
+  shoot(rel < .36 ? -1 : rel > .64 ? 1 : 0);
+});
+function endPen(after) {
+  zoomFx('zoom-out', () => {
+    field.mode = 'attract'; pen = null; hudScore();
+    if (field.kicker) { field.kicker.a = A / 2; field.kicker.l = L / 2 + 10 }
+    after && after();
+  });
+}
+function drawPK() {
+  const G = pkGeom(), P = pen, R = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x, y, w, h) };
+  ctx.setTransform(2, 0, 0, 2, 0, 0); ctx.imageSmoothingEnabled = false;
+  const wt = G.gy0 - 30; // 벽 위쪽 = 천장 끝
+  R(0, 0, W, wt, '#07080d');
+  for (let x = 0; x < W; x += 6) R(x, 0, 1, wt, '#141826');
+  for (let y = 0; y < wt; y += 6) R(0, y, W, 1, '#141826');
+  for (let r = 0; r < 3; r++) for (let x = 4 + r * 9; x < W; x += 30) { R(x, 6 + r * 12, 16, 1.5, '#fff2c8'); R(x + 2, 7.5 + r * 12, 12, 1, '#6b5a35') }
+  R(0, wt, W, 18, '#8e3b2c');
+  for (let y = wt; y < wt + 18; y += 4.5) { R(0, y, W, .8, '#5e2219'); for (let x = (Math.round((y - wt) / 4.5) % 2) * 6; x < W; x += 12) R(x, y, .8, 4.5, '#5e2219') }
+  R(0, wt + 18, W, 12, '#111835'); R(0, wt + 18, W, 1, '#2f385a');
+  ctx.font = '7px Galmuri11'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let x = 0, i = 0; x < W; x += 64, i++) {
+    if (i % 2 && EMB) ctx.drawImage(EMB, x + 26, wt + 19, 10, 10); else { ctx.fillStyle = '#efede8'; ctx.fillText('METACITY FC', x + 32, wt + 24.5) }
+  }
+  // 잔디: 앞으로 올수록 넓어지는 줄무늬(원근)
+  for (let y = wt + 30, hgt = 7, k = 0; y < H; y += hgt, hgt *= 1.22, k++) R(0, y, W, hgt + .5, k % 2 ? '#287d37' : '#2e8b3e');
+  ctx.strokeStyle = '#f2f2ea'; ctx.lineWidth = 1.4;
+  const line = (pts) => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke() };
+  line([[0, G.gy1], [W, G.gy1]]);
+  line([[G.gx0 - G.gw * .12, G.gy1], [G.gx0 - G.gw * .2, G.gy1 + 16], [G.gx0 + G.gw * 1.2, G.gy1 + 16], [G.gx0 + G.gw * 1.12, G.gy1]]);
+  line([[G.gx0 - G.gw * .3, G.gy1], [G.gx0 - G.gw * .55, G.sy + 16], [G.gx0 + G.gw * 1.55, G.sy + 16], [G.gx0 + G.gw * 1.3, G.gy1]]);
+  ctx.fillStyle = '#f2f2ea'; ctx.beginPath(); ctx.ellipse(G.sx, G.sy + 2, 4, 1.6, 0, 0, 7); ctx.fill();
+  // 그물
+  R(G.gx0, G.gy0, G.gw, G.gh, 'rgba(255,255,255,.10)');
+  ctx.fillStyle = 'rgba(235,235,235,.45)';
+  for (let x = G.gx0; x <= G.gx0 + G.gw; x += 4) ctx.fillRect(x, G.gy0, .6, G.gh);
+  for (let y = G.gy0; y <= G.gy1; y += 4) ctx.fillRect(G.gx0, y, G.gw, .6);
+  // 공 위치(원근: 멀어질수록 작게)
+  const tx = G.sx + P.aim * G.gw * .32, ty = G.gy0 + G.gh * .5;
+  let bx = G.sx, by = G.sy, br = 5.5, gy = G.sy;
+  if (P.phase === 'fly') { const u = P.u; bx = G.sx + (tx - G.sx) * u; gy = G.sy + (G.gy1 - G.sy) * u; by = gy + (ty - G.gy1) * u - Math.sin(u * Math.PI) * 14; br = 5.5 - 3 * u }
+  else if (P.phase === 'after') {
+    const v = Math.min(1, P.t / .7);
+    if (P.saved) { bx = tx + (P.aim || 1) * -1 * 0 + (tx < G.sx ? -1 : 1) * 30 * v; gy = G.gy1 + 30 * v; by = gy - Math.sin(v * Math.PI) * 12; br = 2.5 + 2 * v }
+    else { bx = tx; gy = G.gy1 - 2; by = ty + (G.gy1 - 3 - ty) * Math.min(1, P.t * 2.5); br = 2.5 }
+  }
+  // 골키퍼(크게). 막았으면 그쪽으로 몸을 날린다
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+  const ks = Math.max(2, Math.round(G.gh * 2 * .92 / 47)), kw = 32 * ks, kh = 47 * ks, KX = Math.round(P.kx * 2), KY = Math.round(G.gy1 * 2);
+  ctx.translate(KX, KY);
+  if (P.phase === 'after' && P.saved) { ctx.translate((tx < G.sx ? -1 : 1) * 10, -6); ctx.rotate((tx < G.sx ? -1 : 1) * .9) }
+  ctx.drawImage(sprite(GK_LOOK, P.phase === 'aim' ? Math.floor(field.t * 6) % 2 : 0), -kw / 2, -kh + 4, kw, kh);
+  ctx.restore();
+  // 골대 기둥 · 크로스바
+  R(G.gx0 - 2.5, G.gy0 - 2.5, 2.5, G.gh + 2.5, '#fff'); R(G.gx0 + G.gw, G.gy0 - 2.5, 2.5, G.gh + 2.5, '#fff'); R(G.gx0 - 2.5, G.gy0 - 2.5, G.gw + 5, 2.5, '#fff');
+  // 공 그림자 · 공
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(bx, gy + 1, br * .9, br * .35, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = OUT; ctx.beginPath(); ctx.arc(bx, by - br, br + .8, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fafafa'; ctx.beginPath(); ctx.arc(bx, by - br, br, 0, 7); ctx.fill();
+  ctx.fillStyle = OUT; ctx.beginPath(); ctx.arc(bx, by - br, br * .35, 0, 7); ctx.fill();
+  // 키커 뒷모습(아래쪽, 크게)
+  if (cur) {
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+    const s2 = portrait ? 3 : 2, step = P.phase === 'run' ? Math.min(1, P.t / .3) : (P.phase === 'fly' || P.phase === 'after' || P.phase === 'done') ? 1 : 0;
+    const X2 = Math.round((G.sx - 30 + step * 16) * 2), Y2 = Math.round((G.sy + 30 - step * 14) * 2); // 공 왼쪽 뒤에서 달려든다
+    ctx.drawImage(sprite(cur.look, P.phase === 'run' ? 1 : 0, true), X2 - 16 * s2, Y2 - 47 * s2, 32 * s2, 47 * s2);
+    ctx.restore();
+  }
+  // 위쪽: 3번 킥 결과 표시
+  for (let i = 0; i < 3; i++) {
+    const cx = W / 2 - 14 + i * 14, cy = 10, h = P.hist[i];
+    ctx.fillStyle = OUT; ctx.beginPath(); ctx.arc(cx, cy, 5.5, 0, 7); ctx.fill();
+    ctx.fillStyle = h === 'G' ? '#ffd36b' : h === 'S' ? '#c0392b' : i === P.shot ? '#efede8' : '#2f385a'; ctx.beginPath(); ctx.arc(cx, cy, 4.2, 0, 7); ctx.fill();
+  }
+  // 왼쪽 아래: 내 선수 카드(AI 그림)
+  const im = cur && recImg(cur.img);
+  if (im && im.complete && im.naturalWidth) {
+    const ch = portrait ? 58 : 46, cw2 = ch * .78, cx0 = 6, cy0 = 6;
+    R(cx0 - 1.5, cy0 - 1.5, cw2 + 3, ch + 3, OUT); R(cx0, cy0, cw2, ch, '#fff1b8');
+    const iw = Math.min(cw2 - 4, im.naturalWidth * (ch - 14) / im.naturalHeight), ih = iw * im.naturalHeight / im.naturalWidth;
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(im, cx0 + (cw2 - iw) / 2, cy0 + 2, iw, ih); ctx.imageSmoothingEnabled = false;
+    ctx.font = '7px Galmuri11'; ctx.fillStyle = '#111835'; ctx.fillText(cur.nick || 'ME', cx0 + cw2 / 2, cy0 + ch - 5);
+  }
+}
 
 /* ===================== HUD · 전광판 · 배너 ===================== */
 function hudScore() { $('#hudScore').classList.toggle('hidden', field.mode === 'penalty'); $('#hudPen').classList.toggle('hidden', field.mode !== 'penalty'); $('#scN').textContent = pad(field.score.HOME, 2); $('#scW').textContent = pad(field.score.AWAY, 2) }
@@ -817,6 +913,60 @@ function hudStats() {
 }
 function banner(text, cls = '') { const el = $('#banner'); el.textContent = text; el.className = ''; void el.offsetWidth; el.className = 'show ' + cls }
 
+/* ===================== AI 캐릭터 (n8n → Gemini). 실패하면 도트 선수로 대신한다 ===================== */
+const GEN_URL = 'https://flow.illey.me/webhook/metacity-arena-character';
+const AI_H = 56; // 구장에서 AI 캐릭터 높이(2배 캔버스 px)
+const imgCache = new Map();
+function recImg(src) { if (!src) return null; let i = imgCache.get(src); if (!i) { i = new Image(); i.src = src; imgCache.set(src, i) } return i }
+const DESC = { age: ['an 8 year old', 'a 10 year old', 'a 12 year old', 'a teenage', 'a young adult', 'a friendly 40 year old'], who: ['boy', 'girl'],
+  hair: ['short black hair', 'messy brown hair', 'a high ponytail', 'long straight hair', 'a bob cut', 'curly hair', 'a buzz cut', 'two pigtails', 'a headband'] };
+const pickR = a => a[Math.floor(Math.random() * a.length)];
+async function aiGenerate(team, photo) {
+  const body = photo ? { mode: 'photo', team, photo } : { mode: 'auto', team, desc: `${pickR(DESC.age)} ${pickR(DESC.who)} with ${pickR(DESC.hair)}` };
+  const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 45000);
+  try {
+    const res = await fetch(GEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
+    const d = await res.json();
+    if (!d.ok) throw new Error(d.reason || 'fail');
+    return await cutout('data:' + (d.mime || 'image/png') + ';base64,' + d.data);
+  } finally { clearTimeout(to) }
+}
+// 흰 배경을 가장자리부터 지우고(굵은 외곽선 안쪽은 남는다) 캐릭터만 잘라 높이 160px 로 줄인다
+function cutout(src) {
+  return new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => {
+      const h = 360, w = Math.round(im.width * h / im.height), c = document.createElement('canvas'); c.width = w; c.height = h;
+      const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(im, 0, 0, w, h);
+      const d = g.getImageData(0, 0, w, h), px = d.data, seen = new Uint8Array(w * h), st = [];
+      const light = i => px[i * 4] > 226 && px[i * 4 + 1] > 226 && px[i * 4 + 2] > 226;
+      for (let x = 0; x < w; x++) st.push(x, (h - 1) * w + x);
+      for (let y = 0; y < h; y++) st.push(y * w, y * w + w - 1);
+      while (st.length) {
+        const i = st.pop(); if (seen[i] || !light(i)) continue; seen[i] = 1; px[i * 4 + 3] = 0;
+        const x = i % w; if (x > 0) st.push(i - 1); if (x < w - 1) st.push(i + 1); if (i >= w) st.push(i - w); if (i < w * (h - 1)) st.push(i + w);
+      }
+      for (let i = 0; i < w * h; i++) if (px[i * 4 + 3] && px[i * 4] > 200 && px[i * 4 + 1] > 200 && px[i * 4 + 2] > 200 &&
+        (seen[i - 1] || seen[i + 1] || seen[i - w] || seen[i + w])) px[i * 4 + 3] = 90; // 가장자리 흰 테 흐리게
+      let x0 = w, y0 = h, x1 = -1, y1 = -1;
+      for (let i = 0; i < w * h; i++) if (px[i * 4 + 3] > 100) { const x = i % w, y = (i / w) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y }
+      if (x1 < 0) return rej(new Error('empty'));
+      g.putImageData(d, 0, 0);
+      const oh = 160, ow = Math.round((x1 - x0 + 1) * oh / (y1 - y0 + 1)), o = document.createElement('canvas'); o.width = ow; o.height = oh;
+      const og = o.getContext('2d'); og.imageSmoothingQuality = 'high'; og.drawImage(c, x0, y0, x1 - x0 + 1, y1 - y0 + 1, 0, 0, ow, oh);
+      res(o.toDataURL('image/png'));
+    };
+    im.onerror = () => rej(new Error('img')); im.src = src;
+  });
+}
+function startGen(c) {
+  c.aiState = 'busy'; c.aiTry = (c.aiTry || 0) + 1;
+  c.gen = aiGenerate(c.team, c.photo).then(img => { c.img = img; c.aiState = 'ok'; if (c.kicker) c.kicker.img = recImg(img) })
+    .catch(e => { console.warn('AI 캐릭터 실패:', e.message); c.aiState = c.img ? 'ok' : 'fail' })
+    .finally(() => { if (cur === c && screen === 'char') renderChar() });
+  if (cur === c && screen === 'char') renderChar();
+}
+
 /* ===================== 화면 흐름 ===================== */
 let screen = 'title', cur = null, lastInput = Date.now(), clearTimer = 0;
 const enter = {};
@@ -826,7 +976,7 @@ function newCur(mode) { const team = TEAMS[records.length % 2]; return { mode, t
 function resetToTitle() {
   clearInterval(clearTimer); stopCam();
   if (field.kicker) { if (!field.kicker.id) field.players = field.players.filter(p => p !== field.kicker); else field.kicker.me = false; field.kicker = null }
-  if (field.mode === 'penalty') endPen();
+  if (field.mode === 'penalty') { field.mode = 'attract'; pen = null; hudScore() }
   cur = null; go('title');
 }
 $('#startBtn').addEventListener('click', () => { audio(); sfx('start'); go('mode') });
@@ -838,13 +988,14 @@ enter.book = () => {
   if (!list.length) box.innerHTML = '<p style="grid-column:1/-1;color:#a9b1c6">아직 남긴 한마디가 없습니다. 첫 번째 주인공이 되어 주시기 바랍니다.</p>';
   list.forEach(r => {
     const c = document.createElement('div'); c.className = 'card';
-    const cv2 = document.createElement('canvas'); cv2.width = SW; cv2.height = SH; cv2.getContext('2d').drawImage(sprite(r.look, 0), 0, 0);
+    let cv2; if (r.img) { cv2 = document.createElement('img'); cv2.src = r.img; cv2.style.cssText = 'height:96px;width:auto;image-rendering:auto' }
+    else { cv2 = document.createElement('canvas'); cv2.width = SW; cv2.height = SH; cv2.getContext('2d').drawImage(sprite(r.look, 0), 0, 0) }
     const b = document.createElement('b'), m = document.createElement('p'), s = document.createElement('small');
     b.textContent = r.nick; m.textContent = r.message; s.textContent = new Date(r.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     c.append(cv2, b, m, s); box.appendChild(c);
   });
 };
-$('#autoBtn').addEventListener('click', () => { sfx('coin'); cur = newCur('auto'); go('char') });
+$('#autoBtn').addEventListener('click', () => { sfx('coin'); cur = newCur('auto'); startGen(cur); go('char') });
 
 enter.consent = () => { $('#agree').checked = false; $('#agreeBtn').disabled = true };
 $('#agree').addEventListener('change', e => { $('#agreeBtn').disabled = !e.target.checked; sfx('blip') });
@@ -885,7 +1036,7 @@ enter.camera = async () => {
 };
 function stopCam() { cancelAnimationFrame(camRAF); if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; video.srcObject = null }
 $('#camBack').addEventListener('click', () => { sfx('blip'); go('consent') });
-$('#camAuto').addEventListener('click', () => { sfx('coin'); cur = newCur('auto'); go('char') });
+$('#camAuto').addEventListener('click', () => { sfx('coin'); cur = newCur('auto'); startGen(cur); go('char') });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 $('#shootBtn').addEventListener('click', async () => {
   if (shooting || !stream) return; shooting = false; $('#shootBtn').disabled = true;
@@ -896,7 +1047,10 @@ $('#shootBtn').addEventListener('click', async () => {
   grab(cc, 160, 120); grab(camCtx, 64, 48);
   const fl = $('#camFlash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go'); sfx('shutter');
   cur.look = analyze(cap); cur.look.team = cur.team;
+  const pc = document.createElement('canvas'); pc.width = 512; pc.height = 384; grab(pc.getContext('2d'), 512, 384);
+  cur.photo = pc.toDataURL('image/jpeg', .85).split(',')[1]; pc.width = 0; // AI 에 보낼 사진. 메모리에만 두고 참여가 끝나면 버린다
   cc.clearRect(0, 0, 160, 120); cap.width = 0; stopCam();
+  cur.img = null; startGen(cur);
   camMsg('<div>도트 선수로 바꾸는 중입니다</div><div class="bar"><i id="barFill"></i></div>');
   for (let i = 1; i <= 12; i++) { await sleep(100); const f = $('#barFill'); if (f) f.style.width = i * 100 / 12 + '%'; sfx('dot') }
   camCtx.clearRect(0, 0, 64, 48);
@@ -924,23 +1078,34 @@ $$('.cyc button').forEach(b => b.addEventListener('click', () => {
   else cur.look[k] = (cur.look[k] + d + n) % n;
   renderCyc();
 }));
+function renderChar() {
+  const st = cur.aiState, ai = st === 'ok' && cur.img;
+  $('#charImg').classList.toggle('hidden', !ai); $('#charView').classList.toggle('hidden', !!ai);
+  if (ai) $('#charImg').src = cur.img;
+  $('#aiBusy').classList.toggle('hidden', st !== 'busy');
+  $$('.cyc').forEach(el => el.classList.toggle('hidden', st !== 'fail')); // AI 그림이면 꾸미기 대신 다시 그리기
+  $('#aiNote').textContent = st === 'busy' ? 'AI가 메타시티 유니폼을 입은 선수를 그리고 있습니다. 그동안 닉네임을 적어 주시기 바랍니다.'
+    : st === 'fail' ? 'AI 연결이 어려워 도트 선수로 만들었습니다. 머리 · 색을 골라 꾸며 주시기 바랍니다.'
+    : `${cur.team === 'HOME' ? '홈' : '원정'} 유니폼을 입은 내 선수입니다.`;
+  $('#redoBtn').textContent = cur.mode === 'photo' ? '📷 다시 찍기' : '🎲 다시 그리기';
+  $('#redoBtn').disabled = st === 'busy' || (cur.mode !== 'photo' && cur.aiTry >= 3);
+}
 enter.char = () => {
   $('#charNum').textContent = 'No.' + pad(records.length + 1, 3);
-  $('#charKicker').textContent = cur.mode === 'photo' ? 'NEW PLAYER! · 사진으로 만든 선수입니다' : 'NEW PLAYER! · 자동으로 뽑은 선수입니다';
-  $('#redoBtn').textContent = cur.mode === 'photo' ? '📷 다시 찍기' : '🎲 다시 뽑기';
-  $('#nick').value = cur.nick; renderCyc();
+  $('#charKicker').textContent = cur.mode === 'photo' ? 'NEW PLAYER! · 사진으로 만든 선수입니다' : 'NEW PLAYER! · 자동으로 만든 선수입니다';
+  $('#nick').value = cur.nick; renderCyc(); renderChar();
 };
-$('#redoBtn').addEventListener('click', () => { sfx('blip'); if (cur.mode === 'photo') go('camera'); else { cur.look = randLook(cur.team); renderCyc(); sfx('coin') } });
+$('#redoBtn').addEventListener('click', () => { sfx('blip'); if (cur.mode === 'photo') go('camera'); else { cur.look = randLook(cur.team); startGen(cur) } });
 $('#nick').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur() });
 $('#enterBtn').addEventListener('click', () => {
   cur.nick = $('#nick').value.trim().slice(0, 8) || 'PLAYER' + pad(records.length + 1, 3);
   sfx('start');
-  field.kicker = mkPlayer({ look: { ...cur.look }, name: cur.nick, me: true, speed: 30 });
+  field.kicker = mkPlayer({ look: { ...cur.look }, name: cur.nick, me: true, speed: 30, img: cur.img ? recImg(cur.img) : null }); cur.kicker = field.kicker;
   field.players.push(field.kicker);
   go('kick');
 });
 enter.kick = () => startPen();
-$('#kickNext').addEventListener('click', () => { sfx('blip'); cur.goals = pen.goals; endPen(); field.kicker.retarget = 0; go('survey') });
+$('#kickNext').addEventListener('click', () => { sfx('blip'); cur.goals = pen.goals; $('#kickNext').classList.add('hidden'); endPen(() => { field.kicker && (field.kicker.retarget = 0); go('survey') }) });
 
 /* --- 설문 3문항 --- */
 const QS = [
@@ -973,7 +1138,9 @@ $('#guestSkip').addEventListener('click', () => finish(''));
 const scoreOf = c => 100 + c.goals * 300 + c.survey.filter(Boolean).length * 100 + (c.message ? 200 : 0);
 async function finish(message) {
   if (!cur) return; cur.message = message;
-  const rec = { ts: new Date().toISOString(), mode: cur.mode, nick: cur.nick, team: cur.team, look: cur.look, goals: cur.goals, score: scoreOf(cur), q1: cur.survey[0], q2: cur.survey[1], q3: cur.survey[2], message };
+  if (cur.aiState === 'busy') await Promise.race([cur.gen, sleep(4000)]).catch(() => {});
+  cur.photo = null; // 사진은 여기서 버린다
+  const rec = { img: cur.img || null, ts: new Date().toISOString(), mode: cur.mode, nick: cur.nick, team: cur.team, look: cur.look, goals: cur.goals, score: scoreOf(cur), q1: cur.survey[0], q2: cur.survey[1], q3: cur.survey[2], message };
   try { if (!dbOk) throw new Error('no db'); rec.id = await DB.add(rec) } catch (e) { console.error(e); rec.id = 'mem' + Date.now(); $('#saveWarn').classList.remove('hidden') }
   records.push(rec); hudStats(); syncAll();
   const k = field.kicker; if (k) { Object.assign(k, { id: rec.id, msg: message, name: rec.nick, bubble: message ? 6 : 0 }) }
@@ -984,6 +1151,7 @@ enter.clear = () => {
   const c = cur, total = scoreOf(c);
   $('#clearName').textContent = `No.${pad(records.length, 3)} ${c.nick} 선수 등록 완료`;
   const cx = $('#clearView').getContext('2d'); cx.clearRect(0, 0, SW, SH); cx.drawImage(sprite(c.look, 0), 0, 0);
+  $('#clearView').classList.toggle('hidden', !!c.img); $('#clearImg').classList.toggle('hidden', !c.img); if (c.img) $('#clearImg').src = c.img;
   $('#clearRows').innerHTML = [['출전', 100], [`승부차기 ${c.goals}골`, c.goals * 300], [`설문 ${c.survey.filter(Boolean).length}개`, c.survey.filter(Boolean).length * 100], ['방명록', c.message ? 200 : 0]]
     .map(([a, b]) => `<li><span>${a}</span><b>+${b}</b></li>`).join('');
   sfx('clear'); banner('CLEAR!', 'sm');
@@ -1053,7 +1221,7 @@ $('#admPng').addEventListener('click', async () => {
   g.textAlign = 'center';
   records.forEach((r, i) => {
     const x = 20 + (i % cols) * cw, y = top + Math.floor(i / cols) * ch;
-    g.drawImage(sprite(r.look, 0), x + 16, y, 64, 94);
+    const ri = recImg(r.img); if (ri && ri.complete && ri.naturalWidth) { const ih = 94, iw = Math.round(ri.naturalWidth * ih / ri.naturalHeight); g.imageSmoothingEnabled = true; g.drawImage(ri, x + cw / 2 - iw / 2, y, iw, ih); g.imageSmoothingEnabled = false } else g.drawImage(sprite(r.look, 0), x + 16, y, 64, 94);
     g.fillStyle = '#ffd36b'; g.font = '12px GalmuriMono11'; g.fillText('No.' + pad(r.id, 3), x + cw / 2, y + 100);
     g.fillStyle = '#efede8'; g.font = '14px Galmuri11'; g.fillText(r.nick, x + cw / 2, y + 118);
   });
