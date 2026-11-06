@@ -288,8 +288,8 @@ textarea{resize:none;line-height:1.5}
         <h2>촬영 전에 확인해 주시기 바랍니다</h2>
         <ul class="consent-list">
           <li>사진은 캐릭터 그림을 만드는 데만 쓰고, 이를 위해 <b>구글 Gemini AI로 보냅니다.</b> 그림을 받은 뒤 사진 원본은 패드와 클럽 서버 어디에도 저장하지 않습니다.</li>
-          <li>저장하는 것은 도트 캐릭터 · 닉네임 · 설문 답 · 방명록 한마디입니다.</li>
-          <li>저장한 내용은 이 패드와 클럽 구글 시트에 모아 오픈 행사 결과 정리와 이 구장 화면에만 쓰고, 행사 뒤 3개월 안에 지웁니다.</li>
+          <li>저장하는 것은 AI가 그린 캐릭터 그림 · 닉네임 · 설문 답 · 방명록 한마디입니다. 캐릭터 그림은 클럽 서버에 모아 행사장의 모든 패드 구장 화면에 함께 띄웁니다.</li>
+          <li>저장한 내용은 이 패드와 클럽 서버 · 구글 시트에 모아 오픈 행사 결과 정리와 이 구장 화면에만 쓰고, 행사 뒤 3개월 안에 지웁니다.</li>
           <li>만 14세 미만은 보호자와 함께 확인해 주시기 바랍니다.</li>
         </ul>
         <label class="check"><input type="checkbox" id="agree"> <span>위 내용을 확인했고 촬영에 동의합니다</span></label>
@@ -594,6 +594,8 @@ const DB = {
   clear() { return new Promise((res, rej) => { const t = this.db.transaction('players', 'readwrite'); t.objectStore('players').clear(); t.oncomplete = res; t.onerror = () => rej(t.error) }) },
 };
 let records = [], dbOk = false;
+const remote = new Map(); // 다른 패드 기록(서버에서 받음, 메모리에만)
+const allRecs = () => records.concat([...remote.values()]).sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
 
 /* ===================== 구장 =====================
    시뮬레이션은 구장 기준 좌표로 돌린다: a = 폭 방향, l = 길이 방향(l=0 이 HOME 이 노리는 골대).
@@ -682,9 +684,9 @@ function mkPlayer(o) {
 }
 function refreshField() {
   const keep = field.kicker; field.players = [];
-  records.slice(-40).forEach(r => field.players.push(mkPlayer({ look: r.look, name: r.nick, msg: r.message, id: r.id, img: recImg(r.img) }))); // ponytail: 최근 40명만 구장에 띄움. 많아지면 순번 교대
+  allRecs().slice(-40).forEach(r => field.players.push(mkPlayer({ look: r.look, name: r.nick, msg: r.message, id: r.id, img: recImg(r.img) }))); // ponytail: 최근 40명만 구장에 띄움. 많아지면 순번 교대
   // 참가자가 적을 때 채우는 선수(AI 로 미리 그려 둔 홈 · 원정 2명씩)
-  ['MTCT', 'ARENA', 'FC', 'U12'].slice(0, Math.max(0, 4 - records.length)).forEach((n, i) => field.players.push(mkPlayer({ look: randLook(TEAMS[i % 2]), name: n, npc: true, img: recImg(`assets/npc-${i + 1}.png`) })));
+  ['MTCT', 'ARENA', 'FC', 'U12'].slice(0, Math.max(0, 4 - allRecs().length)).forEach((n, i) => field.players.push(mkPlayer({ look: randLook(TEAMS[i % 2]), name: n, npc: true, img: recImg(`assets/npc-${i + 1}.png`) })));
   // 정해승 감독(블로그 사진으로 만든 AI 그림): 공은 쫓지 않고 사이드라인을 오가며 응원한다
   field.players.push(mkPlayer({ look: randLook('HOME'), name: '정해승 감독', coach: true, img: recImg('assets/coach.png'), a: A - 6, l: coachL(), speed: 14, msgs: COACH_MSGS, msg: COACH_MSGS[0] }));
   if (keep) field.players.push(keep);
@@ -961,9 +963,10 @@ function drawPK() {
 function hudScore() { $('#hudScore').classList.toggle('hidden', field.mode === 'penalty'); $('#hudPen').classList.toggle('hidden', field.mode !== 'penalty'); $('#scN').textContent = pad(field.score.HOME, 2); $('#scW').textContent = pad(field.score.AWAY, 2) }
 function hudPen() { hudScore(); $('#penShot').textContent = `${Math.min(pen.shot + 1, 3)}/3`; $('#penGoal').textContent = pen.goals }
 function hudStats() {
-  $('#hudCount').textContent = pad(records.length, 3);
-  $('#hudHi').textContent = pad(records.reduce((m, r) => Math.max(m, r.score || 0), 0), 5);
-  const msgs = records.filter(r => r.message).slice(-30).map(r => `★ ${r.nick} : ${r.message}`);
+  const all = allRecs();
+  $('#hudCount').textContent = pad(all.length, 3);
+  $('#hudHi').textContent = pad(all.reduce((m, r) => Math.max(m, r.score || 0), 0), 5);
+  const msgs = all.filter(r => r.message).slice(-30).map(r => `★ ${r.nick} : ${r.message}`);
   const t = (msgs.length ? msgs : ['METACITY ARENA GRAND OPENING', '2026. 11. 7. SAT', '메타시티FC 전용 구장이 문을 엽니다']).concat('PLAY · LEARN · GROW · TOGETHER').join('　　　　');
   const el = $('#tickerText'); el.textContent = t; el.style.animationDuration = Math.max(25, t.length * .32) + 's';
 }
@@ -1033,7 +1036,7 @@ document.addEventListener('click', e => { const b = e.target.closest('[data-go]'
 let pickTeam = 'HOME';
 const renderKit = () => $$('.kit-opt').forEach(b => b.setAttribute('aria-checked', b.dataset.team === pickTeam));
 $$('.kit-opt').forEach(b => b.addEventListener('click', () => { sfx('blip'); pickTeam = b.dataset.team; renderKit() }));
-enter.mode = () => { pickTeam = TEAMS[records.length % 2]; renderKit() };
+enter.mode = () => { pickTeam = TEAMS[allRecs().length % 2]; renderKit() };
 function newCur(mode) { const team = pickTeam; return { mode, team, look: randLook(team), nick: '', goals: 0, survey: [null, null, null], message: '' } }
 function resetToTitle() {
   clearInterval(clearTimer); stopCam();
@@ -1045,7 +1048,7 @@ $('#startBtn').addEventListener('click', () => { audio(); sfx('start'); go('mode
 $('#bookBtn').addEventListener('click', () => { audio(); sfx('blip'); go('book') });
 enter.book = () => {
   const box = $('#bookList'); box.innerHTML = '';
-  const list = records.filter(r => r.message).slice().reverse();
+  const list = allRecs().filter(r => r.message).slice().reverse();
   $('#bookCount').textContent = list.length;
   if (!list.length) box.innerHTML = '<p style="grid-column:1/-1;color:#a9b1c6">아직 남긴 한마디가 없습니다. 첫 번째 주인공이 되어 주시기 바랍니다.</p>';
   list.forEach(r => {
@@ -1155,14 +1158,14 @@ function renderChar() {
   $('#redoBtn').disabled = st === 'busy' || left <= 0;
 }
 enter.char = () => {
-  $('#charNum').textContent = 'No.' + pad(records.length + 1, 3);
+  $('#charNum').textContent = 'No.' + pad(allRecs().length + 1, 3);
   $('#charKicker').textContent = cur.mode === 'photo' ? 'NEW PLAYER! · 사진으로 만든 선수입니다' : 'NEW PLAYER! · 자동으로 만든 선수입니다';
   $('#nick').value = cur.nick; renderCyc(); renderChar();
 };
 $('#redoBtn').addEventListener('click', () => { sfx('blip'); if (cur.mode === 'photo') go('camera'); else { cur.look = randLook(cur.team); startGen(cur) } });
 $('#nick').addEventListener('keydown', e => { if (e.key === 'Enter') e.target.blur() });
 $('#enterBtn').addEventListener('click', () => {
-  cur.nick = $('#nick').value.trim().slice(0, 8) || 'PLAYER' + pad(records.length + 1, 3);
+  cur.nick = $('#nick').value.trim().slice(0, 8) || 'PLAYER' + pad(allRecs().length + 1, 3);
   sfx('start');
   field.kicker = mkPlayer({ look: { ...cur.look }, name: cur.nick, me: true, speed: 30, img: cur.img ? recImg(cur.img) : null }); cur.kicker = field.kicker;
   field.players.push(field.kicker);
@@ -1213,7 +1216,7 @@ async function finish(message) {
 }
 enter.clear = () => {
   const c = cur, total = scoreOf(c);
-  $('#clearName').textContent = `No.${pad(records.length, 3)} ${c.nick} 선수 등록 완료`;
+  $('#clearName').textContent = `No.${pad(allRecs().length, 3)} ${c.nick} 선수 등록 완료`;
   const cx = $('#clearView').getContext('2d'); cx.clearRect(0, 0, SW, SH); cx.drawImage(sprite(c.look, 0), 0, 0);
   $('#clearView').classList.toggle('hidden', !!c.img); $('#clearImg').classList.toggle('hidden', !c.img); if (c.img) $('#clearImg').src = c.img;
   $('#clearRows').innerHTML = [['출전', 100], [`승부차기 ${c.goals}골`, c.goals * 300], [`설문 ${c.survey.filter(Boolean).length}개`, c.survey.filter(Boolean).length * 100], ['방명록', c.message ? 200 : 0]]
@@ -1240,25 +1243,56 @@ let lp = 0;
 $('#logoBtn').addEventListener('pointerdown', () => { lp = setTimeout(openAdmin, 2000) });
 ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('#logoBtn').addEventListener(ev, () => clearTimeout(lp)));
 function openAdmin() { if (prompt('관리자 PIN을 입력해 주시기 바랍니다') !== '1107') return; resetToTitle(); go('admin') }
-/* ===================== 서버 전송 (n8n 웹훅 → 클럽 구글 시트). 사진은 보내지 않는다 ===================== */
+/* ===================== 서버 전송 (n8n 웹훅 → 데이터 테이블 → 클럽 구글 시트). 사진은 보내지 않고 AI 캐릭터 그림만 보낸다 ===================== */
 const SYNC_URL = 'https://flow.illey.me/webhook/metacity-arena-guestbook';
 let PAD = '';
 try { PAD = localStorage.getItem('mtct-pad') || '' } catch {}
 if (!PAD) { PAD = 'PAD-' + Math.random().toString(36).slice(2, 6).toUpperCase(); try { localStorage.setItem('mtct-pad', PAD) } catch {} }
 let syncing = false;
+const unsent = r => !r.synced || (r.img && !r.imgSynced);
 async function syncAll() {
   if (syncing || !navigator.onLine) return; syncing = true;
   try {
-    for (const r of records.filter(r => !r.synced)) {
-      const body = { uid: `${PAD}-${r.id}`, pad: PAD, ts: r.ts, mode: r.mode, nick: r.nick, team: r.team, goals: r.goals, score: r.score, q1: r.q1, q2: r.q2, q3: r.q3, message: r.message, look: r.look };
+    for (const r of records.filter(unsent)) {
+      const body = { uid: `${PAD}-${r.id}`, pad: PAD, ts: r.ts, mode: r.mode, nick: r.nick, team: r.team, goals: r.goals, score: r.score, q1: r.q1, q2: r.q2, q3: r.q3, message: r.message, look: r.look, img: r.img || '' };
       const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 10000);
       const res = await fetch(SYNC_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal }).finally(() => clearTimeout(to));
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      r.synced = true; if (dbOk && typeof r.id === 'number') await DB.put(r);
+      r.synced = true; r.imgSynced = !!r.img; if (dbOk && typeof r.id === 'number') await DB.put(r);
     }
   } catch (e) { console.warn('전송 대기:', e.message) } finally { syncing = false }
 }
 setInterval(syncAll, 30000); addEventListener('online', syncAll);
+
+/* --- 다른 패드 기록 받아오기: 어느 기기에서 열어도 같은 구장 · 방명록이 보이게 한다. 처음엔 전체, 그다음엔 바뀐 줄만 --- */
+const LIST_URL = 'https://flow.illey.me/webhook/metacity-arena-guestbook-list';
+let remoteAfter = '', pulling = false;
+function addFieldPlayer(r) {
+  field.players.push(mkPlayer({ look: r.look, name: r.nick, msg: r.message, id: r.id, img: recImg(r.img) }));
+  const npc = field.players.find(p => p.npc); if (npc) field.players.splice(field.players.indexOf(npc), 1);
+  const ps = field.players.filter(p => !p.npc && !p.coach && p !== field.kicker); if (ps.length > 40) field.players.splice(field.players.indexOf(ps[0]), 1);
+}
+async function pullRemote() {
+  if (pulling || !navigator.onLine) return; pulling = true;
+  try {
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 30000);
+    const res = await fetch(LIST_URL + '?after=' + encodeURIComponent(remoteAfter), { signal: ctl.signal }).finally(() => clearTimeout(to));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json(), first = !remoteAfter; let n = 0;
+    for (const r of d.rows || []) {
+      if (!r.uid || r.uid.startsWith(PAD + '-')) continue; // 이 패드 기록은 이미 있다
+      const team = r.team === 'AWAY' ? 'AWAY' : 'HOME';
+      const rec = { id: r.uid, uid: r.uid, remote: true, ts: r.ts, nick: r.nick, team, score: r.score, message: r.message, look: r.look && r.look.team ? r.look : randLook(team), img: r.img || null };
+      const had = remote.has(r.uid); remote.set(r.uid, rec); n++;
+      const p = field.players.find(p => p.id === r.uid);
+      if (p) Object.assign(p, { img: recImg(rec.img), msg: rec.message, name: rec.nick });
+      else if (!had && !first) addFieldPlayer(rec);
+    }
+    if (d.last) remoteAfter = d.last;
+    if (n) { if (first) refreshField(); hudStats() }
+  } catch (e) { console.warn('다른 패드 기록 받기 실패:', e.message) } finally { pulling = false }
+}
+setInterval(pullRemote, 30000); addEventListener('online', pullRemote);
 
 /* --- 예전에 도트로 남은 선수를 AI 그림으로 다시 그린다: 한 명씩, 참가자가 그림을 기다릴 때는 쉬고, 실패는 2번까지 --- */
 const HAIR_EN = { short: c => `short ${c} hair`, spiky: c => `spiky ${c} hair`, bob: c => `${c} hair in a bob cut`, long: c => `long straight ${c} hair`, pony: c => `${c} hair in a ponytail`, buzz: c => `a ${c} buzz cut`, cap: c => `${c} hair under a navy MTCT baseball cap` };
@@ -1279,7 +1313,7 @@ async function regenOld() {
 setInterval(regenOld, 8000); // ponytail: 8초마다 한 명(한 장 10~15초라 실제로는 약 20초에 한 명)
 
 enter.admin = () => {
-  $('#admCount').textContent = records.length + ` (서버 전송 ${records.filter(r => r.synced).length} · 대기 ${records.filter(r => !r.synced).length}, 이 패드 ${PAD})`;
+  $('#admCount').textContent = records.length + ` (서버 전송 ${records.filter(r => !unsent(r)).length} · 대기 ${records.filter(unsent).length}, 이 패드 ${PAD}) · 다른 패드 ${remote.size}명`;
   $('#admInfo').innerHTML = (dbOk ? '패드 브라우저에 저장 중입니다.' : '<b style="color:#ff8a8a">저장소를 열지 못했습니다. 개인정보 보호(시크릿) 모드인지 확인해 주시기 바랍니다.</b>') +
     ' 행사 중간중간 CSV · JSON을 내려받아 백업해 주시기 바랍니다. 브라우저 데이터를 지우면 함께 지워집니다.';
 };
@@ -1329,7 +1363,7 @@ function frame(now) {
   setMute(AU.muted);
   try { await DB.open(); records = await DB.all(); dbOk = true } catch (e) { console.error(e); $('#saveWarn').classList.remove('hidden') }
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist() } catch {}
-  fitStage(); hudStats(); refreshField(); ensureBalls(); hudScore();
+  fitStage(); hudStats(); refreshField(); ensureBalls(); hudScore(); pullRemote();
   requestAnimationFrame(frame);
   await Promise.race([document.fonts.load('8px Galmuri7'), sleep(2500)]).catch(() => {});
   [EMB, ARENA] = await Promise.all([img('assets/emblem.svg'), img('assets/arena-reverse.svg')]);
