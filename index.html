@@ -108,6 +108,14 @@ p{word-break:keep-all}
 .mode-card b{font:700 24px var(--f)}
 .mode-card small{font:14px/1.6 var(--f);color:#a9b1c6;word-break:keep-all}
 .mode-card .tag{font:700 12px var(--f);color:var(--ink);background:var(--gold);padding:3px 8px;letter-spacing:.1em}
+.kit-label{margin:0 0 8px;font-size:14px;color:#a9b1c6}
+.kit-pick{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 14px}
+.kit-opt{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 12px;background:#0b1230;color:var(--cream);border:0;opacity:.55;
+  box-shadow:0 0 0 3px #2f385a;font-family:var(--f)}
+.kit-opt img{height:72px;width:auto}
+.kit-opt span{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.kit-opt b{font:700 20px var(--f)} .kit-opt small{font-size:13px;color:#a9b1c6}
+.kit-opt[aria-checked="true"]{opacity:1;box-shadow:0 0 0 4px var(--gold);background:var(--navy)}
 
 /* 동의 */
 .consent-list{text-align:left;margin:0 auto 16px;padding:16px 20px 16px 36px;background:rgba(255,255,255,.05);font:16px/1.75 var(--f);max-width:680px}
@@ -206,6 +214,7 @@ textarea{resize:none;line-height:1.5}
   #aimRow{gap:6px;flex-wrap:nowrap} .px-btn.aim{min-width:0;flex:1;font-size:16px;padding:12px 4px;margin:4px 2px}
   .consent-list{font-size:14px;padding:12px 12px 12px 28px} .check{font-size:15px;padding:10px 12px}
   .mode-card{padding:18px 12px} .mode-card .ico{font-size:40px} .mode-card b{font-size:20px}
+  .kit-opt small{display:none} .kit-opt img{height:56px}
   .cyc{grid-template-columns:48px 1fr 48px} .cyc span{font-size:15px}
   #banner{font-size:clamp(48px,16vw,90px)}
 }
@@ -260,6 +269,11 @@ textarea{resize:none;line-height:1.5}
       <div class="panel">
         <p class="kicker">STAGE 1 · CREATE PLAYER</p>
         <h2>선수 캐릭터를 어떻게 만드시겠습니까?</h2>
+        <p class="kit-label">① 유니폼을 고르고 ② 만드는 방법을 골라 주시기 바랍니다</p>
+        <div class="kit-pick" role="radiogroup" aria-label="유니폼 선택">
+          <button class="kit-opt" data-team="HOME" role="radio"><img src="assets/npc-1.png" alt=""><span><b>HOME</b><small>남색 홈 유니폼</small></span></button>
+          <button class="kit-opt" data-team="AWAY" role="radio"><img src="assets/npc-2.png" alt=""><span><b>AWAY</b><small>흰색 원정 유니폼</small></span></button>
+        </div>
         <div class="mode-grid">
           <button class="mode-card" data-go="consent"><span class="tag">PHOTO</span><span class="ico">📷</span><b>사진으로 만들기</b><small>얼굴을 찍으면 AI가 나를 닮은<br>메타시티 선수를 그립니다</small></button>
           <button class="mode-card" id="autoBtn"><span class="tag">RANDOM</span><span class="ico">🎲</span><b>자동 생성</b><small>사진 없이 AI가<br>새 선수를 그립니다</small></button>
@@ -958,6 +972,7 @@ function banner(text, cls = '') { const el = $('#banner'); el.textContent = text
 /* ===================== AI 캐릭터 (n8n → Gemini). 실패하면 도트 선수로 대신한다 ===================== */
 const GEN_URL = 'https://flow.illey.me/webhook/metacity-arena-character';
 const AI_H = 56; // 구장에서 AI 캐릭터 높이(2배 캔버스 px)
+const MAX_TRY = 2; // 참가자 한 명당 AI 그림 최대 장수
 const imgCache = new Map();
 function recImg(src) { if (!src) return null; let i = imgCache.get(src); if (!i) { i = new Image(); i.src = src; imgCache.set(src, i) } return i }
 const DESC = { age: ['an 8 year old', 'a 10 year old', 'a 12 year old', 'a teenage', 'a young adult', 'a friendly 40 year old'], who: ['boy', 'girl'],
@@ -1014,7 +1029,12 @@ let screen = 'title', cur = null, lastInput = Date.now(), clearTimer = 0;
 const enter = {};
 function go(id) { $$('.screen').forEach(s => s.classList.toggle('show', s.id === 's-' + id)); const prev = screen; screen = id; if (prev === 'camera' && id !== 'camera') stopCam(); enter[id] && enter[id]() }
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) { sfx('blip'); go(b.dataset.go) } });
-function newCur(mode) { const team = TEAMS[records.length % 2]; return { mode, team, look: randLook(team), nick: '', goals: 0, survey: [null, null, null], message: '' } }
+// 유니폼 선택: 기본값은 홈 · 원정 번갈아(그냥 넘어가도 두 팀이 고르게 섞인다)
+let pickTeam = 'HOME';
+const renderKit = () => $$('.kit-opt').forEach(b => b.setAttribute('aria-checked', b.dataset.team === pickTeam));
+$$('.kit-opt').forEach(b => b.addEventListener('click', () => { sfx('blip'); pickTeam = b.dataset.team; renderKit() }));
+enter.mode = () => { pickTeam = TEAMS[records.length % 2]; renderKit() };
+function newCur(mode) { const team = pickTeam; return { mode, team, look: randLook(team), nick: '', goals: 0, survey: [null, null, null], message: '' } }
 function resetToTitle() {
   clearInterval(clearTimer); stopCam();
   if (field.kicker) { if (!field.kicker.id) field.players = field.players.filter(p => p !== field.kicker); else field.kicker.me = false; field.kicker = null }
@@ -1130,8 +1150,9 @@ function renderChar() {
   $('#aiNote').textContent = st === 'busy' ? 'AI가 메타시티 유니폼을 입은 선수를 그리고 있습니다. 그동안 닉네임을 적어 주시기 바랍니다.'
     : st === 'fail' ? 'AI 연결이 어려워 도트 선수로 만들었습니다. 머리 · 색을 골라 꾸며 주시기 바랍니다.'
     : `${cur.team === 'HOME' ? '홈' : '원정'} 유니폼을 입은 내 선수입니다.`;
-  $('#redoBtn').textContent = cur.mode === 'photo' ? '📷 다시 찍기' : '🎲 다시 그리기';
-  $('#redoBtn').disabled = st === 'busy' || (cur.mode !== 'photo' && cur.aiTry >= 3);
+  const left = MAX_TRY - (cur.aiTry || 0); // 비용 때문에 한 사람당 최대 2장(처음 + 다시 1번)
+  $('#redoBtn').textContent = (cur.mode === 'photo' ? '📷 다시 찍기' : '🎲 다시 그리기') + (left > 0 ? ` (${left}번)` : '');
+  $('#redoBtn').disabled = st === 'busy' || left <= 0;
 }
 enter.char = () => {
   $('#charNum').textContent = 'No.' + pad(records.length + 1, 3);
