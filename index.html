@@ -1233,6 +1233,29 @@ enter.clear = () => {
 };
 $('#clearBtn').addEventListener('click', () => { sfx('blip'); resetToTitle() });
 
+/* --- 손가락이 조금 미끄러져도 누른 것으로 ---
+   안드로이드 Chrome 은 누르는 동안 손가락이 10px 남짓만 움직여도 클릭을 버린다.
+   버튼에서 누르고 그 버튼 안에서(40px 안쪽으로 움직여) 떼면, 원래 클릭이 안 왔을 때만 대신 눌러 준다. */
+const TAP_SEL = 'button, label, [data-go]';
+let tap = null;
+document.addEventListener('touchstart', e => {
+  const t = e.touches[0], el = e.touches.length === 1 && e.target.closest && e.target.closest(TAP_SEL);
+  tap = el ? { el, x: t.clientX, y: t.clientY } : null;
+}, { capture: true, passive: true });
+document.addEventListener('touchend', e => {
+  const s = tap; tap = null; if (!s || e.touches.length) return;
+  const t = e.changedTouches[0], r = s.el.getBoundingClientRect();
+  if (Math.hypot(t.clientX - s.x, t.clientY - s.y) > 40 || t.clientX < r.left || t.clientX > r.right || t.clientY < r.top || t.clientY > r.bottom) return;
+  s.pending = true; tap = s;
+  setTimeout(() => { if (s.pending) { s.pending = false; synth = { el: s.el, t: Date.now() }; s.el.click() } }, 80);
+}, { capture: true, passive: true });
+let synth = null;
+document.addEventListener('click', e => {
+  if (!e.isTrusted) return;
+  if (tap && tap.pending && tap.el.contains(e.target)) tap.pending = false; // 원래 클릭이 왔으면 대신 누르지 않음
+  else if (synth && Date.now() - synth.t < 500 && synth.el.contains(e.target)) { e.stopImmediatePropagation(); e.preventDefault() } // 대신 누른 뒤 늦게 온 원래 클릭은 버림
+}, true);
+
 /* --- 오래 손대지 않으면 처음으로 (중간에 떠난 참가자) --- */
 ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => { lastInput = Date.now(); keepAwake() }, true));
 setInterval(() => { if (!['title', 'admin', 'clear'].includes(screen) && Date.now() - lastInput > 90000) resetToTitle() }, 5000);
